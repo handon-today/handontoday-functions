@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+
+# 가상환경
+venv/
+env/
+.venv/
+
+# 결과 파일 (배포에 불필요)
+*.json
+!requirements.json
+generated_articles_*.md
+korea_articles_*.json
+overseas_articles_*.json
+
+# 구버전 (v2, v3) 배포 안 함
+article_generator_v2.py
+article_generator_v3.py
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# 문서
+README*.md
+README*.txt
+*.log
