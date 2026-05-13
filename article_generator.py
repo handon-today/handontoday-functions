@@ -450,6 +450,7 @@ def generate_article_from_pair(pair):
         "deck": deck,
         "slug": slug,
         "category": "글로벌" if is_overseas else "국내",
+        "image_url": get_image_for_article("글로벌" if is_overseas else "국내", title),
         "body": article_text,  # 레거시 (나중에 제거 예정)
         "body_markdown": article_text,
         "body_html": body_html,

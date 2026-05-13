@@ -288,7 +288,7 @@ def insert_generated_article(article, pipeline_run_id, url_to_id_map, auto_publi
         INSERT INTO generated_articles (
             title, deck, slug,
             body, body_markdown, body_html,
-            category, tags,
+            category, image_url, tags,
             match_reason, source_titles, source_urls,
             validation_passed, validation_issues,
             input_tokens, output_tokens, cost_usd,
@@ -300,7 +300,7 @@ def insert_generated_article(article, pipeline_run_id, url_to_id_map, auto_publi
         ) VALUES (
             :title, :deck, :slug,
             :body, :body_markdown, :body_html,
-            :category, :tags,
+            :category, :image_url, :tags,
             :match_reason, :source_titles, :source_urls,
             :validation_passed, :validation_issues,
             :input_tokens, :output_tokens, :cost_usd,
@@ -352,6 +352,7 @@ def insert_generated_article(article, pipeline_run_id, url_to_id_map, auto_publi
         "body_markdown": body_markdown,
         "body_html": body_html,
         "category": article.get("category", "국내"),
+        "image_url": article.get("image_url"),  # Unsplash 이미지 URL
         "tags": tags,
         "match_reason": article.get("match_reason"),
         "source_titles": source_titles,
