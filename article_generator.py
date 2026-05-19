@@ -314,7 +314,7 @@ ARTICLE_SYSTEM_PROMPT_KOREA = """당신은 양돈 전문 미디어 '한돈투데
 > 📌 **한 줄 요약**: 핵심 메시지
 
 ---
-*한돈투데이 (Handon Today) 작성 | AI의 지원을 받아 작성*
+*한돈투데이 (Handon Today) | 팜스링크 기자 작성*
 
 [톤·스타일]
 - 블로그형 구어체 (딱딱하지 않게)
@@ -375,7 +375,7 @@ ARTICLE_SYSTEM_PROMPT_OVERSEAS = """당신은 양돈 전문 미디어 '한돈투
 > 📌 **한 줄 요약**: 핵심 메시지
 
 ---
-*한돈투데이 (Handon Today) 작성 | AI의 지원을 받아 작성*
+*한돈투데이 (Handon Today) | 팜스링크 기자 작성*
 
 [톤·스타일]
 - 블로그형 구어체로 친근하게
@@ -502,7 +502,7 @@ def validate_article(article):
     if "한돈투데이" not in body:
         issues.append("한돈투데이 푸터 없음")
     
-    if "AI의 지원을 받아 작성" not in body:
+    if "팜스링크 기자 작성" not in body:
         issues.append("AI 작성 표시 없음")
     
     return {"passed": len(issues) == 0, "issues": issues}
