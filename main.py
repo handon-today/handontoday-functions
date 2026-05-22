@@ -369,4 +369,3 @@ def _make_response(stats, status_code):
         status_code,
         {"Content-Type": "application/json; charset=utf-8"},
     )
-  EOF

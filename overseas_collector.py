@@ -822,4 +822,3 @@ if __name__ == "__main__":
         if all_articles:
             save_to_file(all_articles)
         print()
-      EOF
