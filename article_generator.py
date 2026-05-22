@@ -384,13 +384,43 @@ ARTICLE_SYSTEM_PROMPT_OVERSEAS = """당신은 양돈 전문 미디어 '한돈투
 - 분량: 800~1,200자 내외 — 단, 원문 정보 부족 시 짧게 작성 가능"""
 
 
+def build_overseas_pool(asia_articles, global_articles, pool_size=12):
+    """
+    글로벌 기사 후보 풀을 아시아 6 : 영어권 4 비중으로 구성.
+    pool_size: 매칭에 넘길 해외 기사 총 수
+    """
+    import random
+    asia   = list(asia_articles)
+    glob   = list(global_articles)
+    random.shuffle(asia)
+    random.shuffle(glob)
+
+    asia_quota   = round(pool_size * 0.6)   # 12건 → 7건
+    global_quota = pool_size - asia_quota   # → 5건
+
+    asia_picks   = asia[:asia_quota]
+    global_picks = glob[:global_quota]
+
+    # 한쪽 부족하면 상대편으로 보충
+    if len(asia_picks) < asia_quota:
+        global_picks += glob[global_quota: global_quota + (asia_quota - len(asia_picks))]
+    if len(global_picks) < global_quota:
+        asia_picks += asia[asia_quota: asia_quota + (global_quota - len(global_picks))]
+
+    pool = asia_picks + global_picks
+    random.shuffle(pool)
+
+    print(f"  해외 풀: 아시아 {len(asia_picks)}건 / 영어권 {len(global_picks)}건")
+    return pool
+
+
 def is_overseas_pair(pair):
     """짝이 해외 기사인지 판단"""
     overseas_sources = {
-    "The Pig Site", "Pig Progress", "National Hog Farmer", "pig333",
-    "soozhu.com", "efeedlink.com", "pasusart.com",
-    "livestockemag.com", "nguoichannuoi.vn", "nhachannuoi.vn",
-}
+        "The Pig Site", "Pig Progress", "National Hog Farmer", "pig333",
+        "soozhu.com", "efeedlink.com", "pasusart.com",
+        "livestockemag.com", "nguoichannuoi.vn", "nhachannuoi.vn",
+    }
     sources = {pair["article_a"]["source"], pair["article_b"]["source"]}
     return bool(sources & overseas_sources)
 
@@ -730,9 +760,23 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
     
     print(f"\n[입력] 총 {len(articles)}건")
     
-    articles = filter_recent_articles(articles, hours=recent_hours)
-    print(f"[필터] 최근 {recent_hours}시간: {len(articles)}건")
-    
+    # 국내 / 아시아 / 영어권 분리
+    korea_articles  = [a for a in articles if a.get("source_type") == "korea"]
+    asia_articles   = [a for a in articles if a.get("region") == "asia"]
+    global_articles = [a for a in articles if a.get("region") == "global"]
+
+    # 아시아 6:영어권 4 비중으로 해외 풀 구성
+    overseas_pool = build_overseas_pool(asia_articles, global_articles, pool_size=12)
+
+    # 합쳐서 최신순 필터
+    all_for_matching = korea_articles + overseas_pool
+    all_for_matching = filter_recent_articles(all_for_matching, hours=recent_hours)
+
+    print(f"[분리] 국내 {len(korea_articles)}건 / 아시아 {len(asia_articles)}건 / 영어권 {len(global_articles)}건")
+    print(f"[풀] 매칭 대상: 국내 {len(korea_articles)}건 + 해외 {len(overseas_pool)}건 = {len(all_for_matching)}건")
+
+    articles = all_for_matching  # 이후 코드와 변수명 통일
+
     if len(articles) < 2:
         print("\n[종료] 기사 부족")
         return []
@@ -859,5 +903,3 @@ def generate_slug_simple(title):
     # 이모지 제거
     title_clean = re.sub(r'[^\w\s가-힣a-zA-Z0-9-]', '', title)
     return slugify(title_clean, max_length=100, word_boundary=True)
-
-
