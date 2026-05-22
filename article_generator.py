@@ -386,7 +386,11 @@ ARTICLE_SYSTEM_PROMPT_OVERSEAS = """당신은 양돈 전문 미디어 '한돈투
 
 def is_overseas_pair(pair):
     """짝이 해외 기사인지 판단"""
-    overseas_sources = {"The Pig Site", "Pig Progress", "National Hog Farmer", "pig333"}
+    overseas_sources = {
+    "The Pig Site", "Pig Progress", "National Hog Farmer", "pig333",
+    "soozhu.com", "efeedlink.com", "pasusart.com",
+    "livestockemag.com", "nguoichannuoi.vn", "nhachannuoi.vn",
+}
     sources = {pair["article_a"]["source"], pair["article_b"]["source"]}
     return bool(sources & overseas_sources)
 
