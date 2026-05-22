@@ -415,14 +415,16 @@ def build_overseas_pool(asia_articles, global_articles, pool_size=12):
 
 
 def is_overseas_pair(pair):
-    """짝이 해외 기사인지 판단"""
+    """짝 중 하나라도 해외 소스면 글로벌로 분류"""
     overseas_sources = {
         "The Pig Site", "Pig Progress", "National Hog Farmer", "pig333",
         "soozhu.com", "efeedlink.com", "pasusart.com",
         "livestockemag.com", "nguoichannuoi.vn", "nhachannuoi.vn",
     }
-    sources = {pair["article_a"]["source"], pair["article_b"]["source"]}
-    return bool(sources & overseas_sources)
+    source_a = pair["article_a"]["source"]
+    source_b = pair["article_b"]["source"]
+    # 둘 중 하나라도 해외 소스면 글로벌
+    return source_a in overseas_sources or source_b in overseas_sources
 
 
 def generate_article_from_pair(pair):
