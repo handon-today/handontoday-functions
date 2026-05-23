@@ -62,6 +62,67 @@ def _get_ticker(name, symbol, fmt_val, fmt_chg):
         return {"name": name, "value": "N/A", "change": "N/A", "pct": "N/A", "up": True}
 
 
+def _fetch_dongga():
+    """돈가 — 축산물품질평가원 돈육대표가격 API"""
+    EKAPE_KEY = os.getenv("EKAPE_API_KEY", "")
+    KST = timezone(timedelta(hours=9))
+    yesterday = datetime.now(KST) - timedelta(days=1)
+    day_before = datetime.now(KST) - timedelta(days=2)
+    year_ago   = datetime.now(KST) - timedelta(days=366)
+
+    def _get_price(target_date):
+        ymd = target_date.strftime("%Y%m%d")
+        url = (
+            f"https://data.ekape.or.kr/openapi-data/service/user/grade"
+            f"/auct/pigRepresentativePrice"
+            f"?serviceKey={EKAPE_KEY}&pageNo=1&numOfRows=10"
+            f"&startYmd={ymd}&endYmd={ymd}"
+        )
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(r.read().decode())
+                items = root.findall(".//item")
+                if not items:
+                    return None
+                # 탕박(dongpiCode=1) 전체 평균가
+                for item in items:
+                    row = {c.tag: c.text for c in item}
+                    print(f"  [돈가 raw] {row}")
+                    # avgPrice 또는 price 필드
+                    price = row.get("avgPrice") or row.get("price") or row.get("avgAucpc")
+                    if price:
+                        return int(float(price.replace(",", "")))
+        except Exception as e:
+            print(f"  [돈가 오류] {e}")
+        return None
+
+    today_price  = _get_price(yesterday)
+    before_price = _get_price(day_before)
+    yoy_price    = _get_price(year_ago)
+
+    chg     = round(today_price - before_price) if today_price and before_price else None
+    chg_pct = round(chg / before_price * 100, 2) if chg and before_price else None
+    yoy_chg = round(today_price - yoy_price) if today_price and yoy_price else None
+    yoy_pct = round(yoy_chg / yoy_price * 100, 2) if yoy_chg and yoy_price else None
+
+    print(f"  [돈가] {yesterday.strftime('%-m/%-d')}: {today_price}원, 전일대비: {chg}원")
+
+    return {
+        "today":      f"{today_price:,}원/㎏" if today_price else "N/A",
+        "today_date": yesterday.strftime("%-m/%-d"),
+        "chg":        f"{'+'if chg>=0 else ''}{chg:,}원" if chg is not None else "N/A",
+        "chg_pct":    f"{'+'if chg_pct>=0 else ''}{chg_pct}%" if chg_pct is not None else "N/A",
+        "chg_up":     chg >= 0 if chg is not None else True,
+        "yoy":        f"{yoy_price:,}원/㎏" if yoy_price else "N/A",
+        "yoy_date":   year_ago.strftime("%-m/%-d/%y"),
+        "yoy_chg":    f"{'+'if yoy_chg>=0 else ''}{yoy_chg:,}원" if yoy_chg is not None else "N/A",
+        "yoy_pct":    f"{'+'if yoy_pct>=0 else ''}{yoy_pct}%" if yoy_pct is not None else "N/A",
+        "yoy_up":     yoy_chg >= 0 if yoy_chg is not None else True,
+    }
+
+
 def collect_market_data():
     """전체 거시경제 + 양돈 지표 수집"""
     print("  [브리핑] 거시경제 지표 수집 중...")
@@ -79,20 +140,9 @@ def collect_market_data():
     keys = ["kospi","kosdaq","nasdaq","sp500","usd_krw","eur_krw","corn","soymeal"]
     market = {keys[i]: _get_ticker(*s) for i, s in enumerate(specs)}
 
-    # 돈가 — data.go.kr API 키 발급 후 연동 예정
-    yesterday = datetime.now(KST) - timedelta(days=1)
-    market["dongga"] = {
-        "today":      "N/A",
-        "today_date": yesterday.strftime("%-m/%-d"),
-        "chg":        "N/A",
-        "chg_pct":    "N/A",
-        "chg_up":     True,
-        "yoy":        "N/A",
-        "yoy_date":   (yesterday - timedelta(days=365)).strftime("%-m/%-d/%y"),
-        "yoy_chg":    "N/A",
-        "yoy_pct":    "N/A",
-        "yoy_up":     True,
-    }
+    # 돈가 — data.go.kr 축산물품질평가원 API
+    dong = _fetch_dongga()
+    market["dongga"] = dong
 
     print("  [브리핑] 지표 수집 완료")
     return market
