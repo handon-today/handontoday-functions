@@ -194,7 +194,7 @@ def run_pipeline(request):
     try:
         # ── 0. 오전 6시 KST: 일일 시황 브리핑 ──────────
         now_kst = datetime.now(KST)
-        if True:  # 테스트용
+        if now_kst.hour == 6:
             try:
                 today_start = now_kst.replace(hour=0, minute=0, second=0, microsecond=0)
                 with db_manager.get_engine().connect() as _conn:
