@@ -134,7 +134,7 @@ def get_yesterday_articles(engine):
             "id":       article_id,
             "title":    title,
             "category": category,
-            "url":      f"/article/{article_id}/{slug}/",
+            "url":      f"/article/{article_id}-{slug}/",
         })
 
     print(f"  [브리핑] 전날 기사 {len(articles)}건 로드")
