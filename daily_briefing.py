@@ -388,11 +388,11 @@ def save_to_db(engine, body_html, cost_usd, pipeline_run_id=None):
 
     sql = text("""
         INSERT INTO generated_articles
-          (title, body, body_html, category, match_reason,
+          (title, deck, body, body_html, body_markdown, category, match_reason,
            validation_passed, cost_usd, publish_status,
            published_at, pipeline_run_id, generated_at, slug)
         VALUES
-          (:title, :body, :body_html, '국내', '일일 시황 브리핑 자동 생성',
+          (:title, :deck, :body, :body_html, :body_markdown, '국내', '일일 시황 브리핑 자동 생성',
            true, :cost_usd, 'published',
            :now, :run_id, :now, :slug)
         RETURNING id
@@ -401,8 +401,10 @@ def save_to_db(engine, body_html, cost_usd, pipeline_run_id=None):
     with engine.begin() as conn:
         row = conn.execute(sql, {
             "title":     title,
+            "deck":      "전일 주요 시장 지표와 뉴스 요약을 전해드립니다.",
             "body":      "일일 시황 브리핑",
             "body_html": body_html,
+            "body_markdown": "일일 시황 브리핑",
             "cost_usd":  cost_usd,
             "now":       now_kst.astimezone(timezone.utc),
             "run_id":    pipeline_run_id,
