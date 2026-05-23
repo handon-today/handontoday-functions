@@ -73,7 +73,7 @@ def _fetch_dongga():
     def _get_price(target_date):
         ymd = target_date.strftime("%Y%m%d")
         url = (
-            f"https://data.ekape.or.kr/openapi-data/service/user/grade"
+            f"http://data.ekape.or.kr/openapi-data/service/user/grade"
             f"/auct/pigRepresentativePrice"
             f"?serviceKey={EKAPE_KEY}&pageNo=1&numOfRows=10"
             f"&startYmd={ymd}&endYmd={ymd}"
