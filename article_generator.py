@@ -424,7 +424,7 @@ def is_overseas_pair(pair):
     source_a = pair["article_a"]["source"]
     source_b = pair["article_b"]["source"]
     # 둘 중 하나라도 해외 소스면 글로벌
-    return source_a in overseas_sources or source_b in overseas_sources
+    return source_a in overseas_sources and source_b in overseas_sources
 
 
 def generate_article_from_pair(pair):
