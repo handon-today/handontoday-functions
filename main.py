@@ -21,6 +21,7 @@ import os
 import json
 import random
 import traceback
+from sqlalchemy import text
 from datetime import datetime, timezone, timedelta
 
 import functions_framework
@@ -29,6 +30,7 @@ from google.cloud import storage
 import korea_crawler
 import overseas_collector
 import article_generator
+import daily_briefing
 import notifier
 import db_manager
 
@@ -190,6 +192,32 @@ def run_pipeline(request):
     url_to_id_map = {}
 
     try:
+        # ── 0. 오전 6시 KST: 일일 시황 브리핑 ──────────
+        now_kst = datetime.now(KST)
+        if now_kst.hour == 6:
+            try:
+                today_start = now_kst.replace(hour=0, minute=0, second=0, microsecond=0)
+                with db_manager.get_engine().connect() as _conn:
+                    existing = _conn.execute(text("""
+                        SELECT id FROM generated_articles
+                        WHERE title LIKE '🐷 한돈투데이 모닝 브리핑%'
+                          AND published_at >= :today
+                        LIMIT 1
+                    """), {"today": today_start.astimezone(timezone.utc)}).fetchone()
+                if existing:
+                    print(f"\n[브리핑] 오늘 브리핑 이미 존재 (id={existing[0]}) — 스킵")
+                else:
+                    print(f"\n[브리핑] 오전 6시 — 일일 시황 브리핑 생성")
+                    briefing_result = daily_briefing.run_daily_briefing(
+                        db_manager.get_engine()
+                    )
+                    if briefing_result["success"]:
+                        stats["total_cost_usd"] += briefing_result["cost_usd"]
+            except Exception as e:
+                print(f"[브리핑 에러] {e}")
+                stats["errors"].append(f"브리핑 오류: {str(e)}")
+        # ─────────────────────────────────────────────────
+
         # ── 1. 국내 크롤링 ────────────────────────────
         print("\n[1/5] 국내 뉴스 크롤링")
         try:
