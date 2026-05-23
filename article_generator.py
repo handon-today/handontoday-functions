@@ -257,7 +257,7 @@ def match_articles_with_ai(articles, max_pairs=8):
                 })
                 used_ids.add(id_a)
                 used_ids.add(id_b)
-        except (KeyError, ValueError):
+        except (KeyError, ValueError, TypeError):
             continue
     
     print(f"  → {len(pairs)}쌍 매칭 완료")
