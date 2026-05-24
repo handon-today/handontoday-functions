@@ -787,6 +787,7 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
     if actual_korea > 0 and len(korea_pool) >= 2:
         print(f"\n[국내 매칭] {len(korea_pool)}건 → {actual_korea}쌍 요청")
         korea_pairs = match_articles_with_ai(korea_pool, max_pairs=actual_korea)
+        korea_pairs = korea_pairs[:actual_korea]  # 초과 방지
         for p in korea_pairs:
             p["_category_override"] = "국내"
         print(f"  → {len(korea_pairs)}쌍 확정")
@@ -815,6 +816,7 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
         if asia_global_pairs > 0 and len(asia_pool_filtered) >= 2:
             print(f"  [아시아] {len(asia_pool_filtered)}건 → {asia_global_pairs}쌍 요청")
             asia_pairs = match_articles_with_ai(asia_pool_filtered, max_pairs=asia_global_pairs)
+            asia_pairs = asia_pairs[:asia_global_pairs]  # 초과 방지
             for p in asia_pairs:
                 p["_category_override"] = "글로벌"
             global_pairs.extend(asia_pairs)
@@ -826,6 +828,7 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
         if eng_global_pairs > 0 and len(global_pool_filtered) >= 2:
             print(f"  [영어권] {len(global_pool_filtered)}건 → {eng_global_pairs}쌍 요청")
             eng_pairs = match_articles_with_ai(global_pool_filtered, max_pairs=eng_global_pairs)
+            eng_pairs = eng_pairs[:eng_global_pairs]  # 초과 방지
             for p in eng_pairs:
                 p["_category_override"] = "글로벌"
             global_pairs.extend(eng_pairs)
