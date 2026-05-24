@@ -52,3 +52,26 @@
 
 ### 변경 파일
 - `daily_briefing.py` — CSS 폰트 사이즈 전체 업스케일 + viewport 추가
+
+## v3.2.3 — 2026-05-24
+**리비전**: (korea_crawler 수정만, 별도 배포 없음)
+
+### 변경 내용
+- `korea_crawler.py`: 각 기사에 `source_type="korea"` 필드 추가
+  - article_generator 내부 국내/글로벌 분리 로직의 핵심 수정
+
+## v3.2.4 — 2026-05-24
+**리비전**: handon-news-pipeline-00031-lof
+
+### 변경 내용
+- `article_generator.py`: 글로벌 매칭을 아시아 1쌍 + 영어권 1쌍으로 분리
+  - 기존: 해외 풀 전체를 AI에 넘겨 글로벌 2쌍 생성
+  - 변경: 아시아 풀 따로, 영어권 풀 따로 매칭 → 균형 보장
+- `main.py`: 중복 풀 구성 제거
+  - 기존: main.py에서 overseas_pool 구성 후 article_generator에 전달
+  - 변경: overseas_result(asia/global 분리된 원본)를 직접 전달
+  - article_generator 내부에서 국내/아시아/영어권 3분리 매칭
+
+### 변경 파일
+- `article_generator.py` — 글로벌 매칭 아시아/영어권 분리
+- `main.py` — overseas_result 직접 전달
