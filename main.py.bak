@@ -213,11 +213,9 @@ def run_pipeline(request):
                     )
                     if briefing_result["success"]:
                         stats["total_cost_usd"] += briefing_result["cost_usd"]
-                    notifier.send_briefing_result(briefing_result)
             except Exception as e:
                 print(f"[브리핑 에러] {e}")
                 stats["errors"].append(f"브리핑 오류: {str(e)}")
-                notifier.send_briefing_result({"success": False, "error": str(e), "cost_usd": 0})
         # ─────────────────────────────────────────────────
 
         # ── 1. 국내 크롤링 ────────────────────────────

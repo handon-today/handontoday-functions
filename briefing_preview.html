@@ -1,0 +1,81 @@
+<html><head><meta charset="UTF-8"></head><body style='background:#fff'><style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{padding:.75rem;max-width:390px;margin:0 auto;font-family:var(--font-sans,-apple-system,sans-serif)}
+.hdr{background:#1a1a1f;border-radius:12px;padding:.85rem 1rem;margin-bottom:.5rem}
+.hdr-eye{font-size:10px;color:#888;font-family:monospace;letter-spacing:.08em;margin-bottom:4px}
+.hdr-title{font-size:16px;font-weight:500;color:#fff;margin-bottom:8px;line-height:1}
+.hdr-lead{display:flex;flex-direction:column;gap:4px}
+.hdr-line{font-size:12px;color:#bbb;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-num{color:#c0392b;margin-right:4px;font-weight:500}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;margin-bottom:3px}
+.mc{background:var(--color-background-secondary,#f5f5f5);border-radius:6px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center}
+.mc-name{font-size:13px;font-weight:400;color:var(--color-text-secondary,#888);line-height:1;margin-bottom:3px}
+.mc-val{font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1}
+.mc-right{text-align:right;flex-shrink:0;margin-left:6px}
+.mc-chg{font-size:11px;font-family:monospace;white-space:nowrap;line-height:1;margin-bottom:2px}
+.mc-pct{font-size:10px;font-family:monospace;white-space:nowrap;line-height:1}
+.up{color:#A32D2D}.down{color:#185FA5}
+.dong-card{background:var(--color-background-secondary,#f5f5f5);border-radius:6px;padding:8px 10px;margin-bottom:3px}
+.dong-inner{display:grid;grid-template-columns:1fr 1px 1fr;align-items:start}
+.dong-sep{background:var(--color-border-tertiary,#ddd)}
+.dong-col{padding:0 8px;display:flex;justify-content:space-between;align-items:center}
+.dong-col:first-child{padding-left:0}
+.dong-label{font-size:10px;color:var(--color-text-secondary,#888);font-family:monospace;margin-bottom:4px}
+.dong-val{font-size:14px;font-weight:500;line-height:1;margin-bottom:2px}
+.dong-chg{font-size:11px;font-family:monospace;line-height:1;margin-bottom:2px;white-space:nowrap}
+.dong-pct{font-size:10px;font-family:monospace;line-height:1;white-space:nowrap}
+.note{font-size:10px;color:var(--color-text-secondary,#999);font-style:italic;margin:.4rem 0 .75rem}
+.divider{height:.5px;background:var(--color-border-tertiary,#e0e0e0);margin:.6rem 0}
+.sec-head{display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--color-border-tertiary,#e0e0e0)}
+.sec-title{font-size:11px;font-weight:500;color:var(--color-text-secondary,#888);letter-spacing:.04em}
+.tl{position:relative;padding-left:1rem;margin-bottom:.75rem}
+.tl::before{content:"";position:absolute;left:4px;top:0;bottom:0;width:1px;background:var(--color-border-secondary,#ddd)}
+.ti{position:relative;padding-bottom:.75rem}
+.ti::before{content:"";position:absolute;left:-12px;top:4px;width:7px;height:7px;border-radius:50%}
+.ti.k::before{background:#A32D2D}.ti.g::before{background:#185FA5}.ti.a::before{background:#BA7517}
+.tc{font-size:10px;font-weight:500;letter-spacing:.05em;margin-bottom:2px}
+.tc.k{color:#A32D2D}.tc.g{color:#185FA5}.tc.a{color:#BA7517}
+.tt{font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1.3;margin-bottom:2px}
+.td{font-size:11px;color:var(--color-text-secondary,#666);line-height:1.45}
+.fp{font-size:12px;color:var(--color-text-primary,#1a1a1a);line-height:1.55;padding:5px 0;border-bottom:.5px solid var(--color-border-tertiary,#e0e0e0)}
+.fp:last-child{border-bottom:none}
+.fp strong{color:#A32D2D}
+.sbox{border:.5px solid var(--color-border-secondary,#ddd);border-radius:6px;padding:.65rem .85rem;margin-top:.6rem}
+.slabel{font-size:10px;color:#A32D2D;font-weight:500;letter-spacing:.05em;margin-bottom:3px}
+.stext{font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1.5}
+.byline{font-size:10px;color:var(--color-text-secondary,#999);font-style:italic;text-align:right;margin-top:.5rem}
+</style>
+<div class="wrap">
+  <div class="hdr">
+    <div class="hdr-eye">HANDON TODAY · 2026년 05월 23일 · 06:00 KST</div>
+    <div class="hdr-title">한돈투데이 모닝 브리핑</div>
+    <div class="hdr-lead">
+      <div class="hdr-line"><span class="hdr-num">1.</span>국내 돼지 사육두수, 5년째 감소 행진.</div>
+      <div class="hdr-line"><span class="hdr-num">2.</span>글로벌 돼지 선물 가격, 연일 하락세.</div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="mc"><div><div class="mc-name">코스피</div><div class="mc-val">7,847.71</div></div><div class="mc-right"><div class="mc-chg up">▲ 32.12p</div><div class="mc-pct up">+0.41%</div></div></div><div class="mc"><div><div class="mc-name">코스닥</div><div class="mc-val">1,161.13</div></div><div class="mc-right"><div class="mc-chg up">▲ 55.16p</div><div class="mc-pct up">+4.99%</div></div></div><div class="mc"><div><div class="mc-name">나스닥 100</div><div class="mc-val">29,481.64</div></div><div class="mc-right"><div class="mc-chg up">▲ 124.37p</div><div class="mc-pct up">+0.42%</div></div></div><div class="mc"><div><div class="mc-name">S&P 500</div><div class="mc-val">7,473.47</div></div><div class="mc-right"><div class="mc-chg up">▲ 27.75p</div><div class="mc-pct up">+0.37%</div></div></div><div class="mc"><div><div class="mc-name">USD / KRW</div><div class="mc-val">1,520.5원</div></div><div class="mc-right"><div class="mc-chg up">▲ 16.1원</div><div class="mc-pct up">+1.07%</div></div></div><div class="mc"><div><div class="mc-name">EUR / KRW</div><div class="mc-val">1,763.6원</div></div><div class="mc-right"><div class="mc-chg up">▲ 25.1원</div><div class="mc-pct up">+1.44%</div></div></div><div class="mc"><div><div class="mc-name">옥수수 선물</div><div class="mc-val">$4.63/bu</div></div><div class="mc-right"><div class="mc-chg up">▲ $0.010</div><div class="mc-pct up">+0.22%</div></div></div><div class="mc"><div><div class="mc-name">대두박 선물</div><div class="mc-val">$331.9/t</div></div><div class="mc-right"><div class="mc-chg up">▲ $3.5</div><div class="mc-pct up">+1.07%</div></div></div>
+  </div>
+  <div class="dong-card">
+    <div class="dong-inner">
+      <div class="dong-col">
+        <div><div class="dong-label">전날 돈가 (5/22)</div><div class="dong-val" style="color:var(--color-text-primary,#1a1a1a)">N/A</div></div>
+        <div style="text-align:right;flex-shrink:0;margin-left:6px"><div class="dong-chg up">N/A</div><div class="dong-pct up">N/A</div></div>
+      </div>
+      <div class="dong-sep"></div>
+      <div class="dong-col">
+        <div><div class="dong-label">작년 동일 (5/22/25)</div><div class="dong-val" style="color:#185FA5">N/A</div></div>
+        <div style="text-align:right;flex-shrink:0;margin-left:6px"><div class="dong-chg up">N/A</div><div class="dong-pct up">N/A</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="note">* 선물: CME USD · 전전날→전날 기준 | 돈가: 추후 연동 예정</div>
+  <div class="divider"></div>
+  <div class="sec-head"><span style="font-size:14px">📰</span><span class="sec-title">어제의 주요 뉴스</span></div>
+  <div class="tl"><a href="https://handontoday.com/article/1/slug/" style="text-decoration:none;display:block"><div class="ti k"><div class="tc k">국내·핵심</div><div class="tt">국내 돼지 사육두수 5년째 감소</div><div class="td">돼지 마릿수 감소세 지속, 폐사율 증가 추세.</div></div></a><a href="https://handontoday.com/article/2/slug/" style="text-decoration:none;display:block"><div class="ti g"><div class="tc g">글로벌</div><div class="tt">돼지 선물 가격, 12월 이후 최저.</div><div class="td">글로벌 돼지 선물 가격 하락세 이어져.</div></div></a><a href="https://handontoday.com/article/3/slug/" style="text-decoration:none;display:block"><div class="ti g"><div class="tc g">글로벌</div><div class="tt">필리핀, ASF로 고기 수입 확대.</div><div class="td">ASF 영향으로 필리핀 돼지고기 쿼터 확대.</div></div></a><a href="https://handontoday.com/article/5/slug/" style="text-decoration:none;display:block"><div class="ti g"><div class="tc g">글로벌</div><div class="tt">유럽 ASF, 야생 멧돼지 영향 커.</div><div class="td">야생 멧돼지를 통한 유럽 ASF 확산 우려.</div></div></a><a href="https://handontoday.com/article/6/slug/" style="text-decoration:none;display:block"><div class="ti k"><div class="tc k">국내</div><div class="tt">삼겹살 외 한돈 생존 전략 모색.</div><div class="td">삼겹살 편중 현상 벗어나기 위한 노력.</div></div></a></div>
+  <div class="sec-head"><span style="font-size:14px">☀️</span><span class="sec-title">오늘 농가 주목 포인트</span></div>
+  <div style="margin-bottom:.75rem"><div class="fp">① 국내 돼지 마릿수 5년째 감소세.</div><div class="fp">② 글로벌 돼지 선물가 연일 하락.</div><div class="fp">③ ASF 진정 기미 없어 필리핀 수입 확대.</div></div>
+  <div class="sbox"><div class="slabel">한 줄 요약</div><div class="stext">국내 돼지 사육두수 감소, 글로벌 가격 하락세.</div></div>
+  <div class="byline">한돈투데이 (Handon Today) | 팜스링크 기자 작성</div>
+</div></body></html>

@@ -141,64 +141,6 @@ def send_pipeline_result(stats, success=True):
     return _post_to_slack(payload)
 
 
-
-
-def send_briefing_result(briefing_result):
-    """일일 시황 브리핑 전용 Slack 알림 (06시에만 전송)"""
-    success = briefing_result.get("success", False)
-    cost_usd = briefing_result.get("cost_usd", 0)
-    cost_krw = cost_usd * 1400
-    title = briefing_result.get("title", "제목 없음")
-    article_id = briefing_result.get("article_id", "-")
-    error = briefing_result.get("error", "")
-
-    if success:
-        header = "🌅 한돈투데이 모닝 브리핑 — 생성 완료"
-        body = (
-            f"*✅ 브리핑 발행 완료*\n"
-            f"• 제목: {title}\n"
-            f"• 기사 ID: {article_id}\n"
-            f"• 생성 비용: ${cost_usd:.4f} (≈{cost_krw:.0f}원)\n"
-            f"• URL: https://handontoday.com/article/{article_id}-"
-        )
-        # slug가 있으면 URL 완성, 없으면 ID만
-        slug = briefing_result.get("slug", "")
-        if slug and article_id != "-":
-            body += f"{slug}/"
-        else:
-            body = body.rstrip(f"{article_id}-")
-            body += f"https://handontoday.com/article/{article_id}/ (slug 미생성)"
-    else:
-        header = "🌅 한돈투데이 모닝 브리핑 — ⚠️ 생성 실패"
-        body = (
-            f"*❌ 브리핑 생성 실패*\n"
-            f"• 오류: {error[:300] if error else '알 수 없는 오류'}"
-        )
-
-    blocks = [
-        {
-            "type": "header",
-            "text": {"type": "plain_text", "text": header, "emoji": True}
-        },
-        {
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": body}
-        },
-        {
-            "type": "context",
-            "elements": [
-                {"type": "mrkdwn", "text": "_매일 오전 06:00 KST · Cloud Functions_"}
-            ]
-        }
-    ]
-
-    payload = {
-        "text": header,
-        "blocks": blocks,
-    }
-
-    return _post_to_slack(payload)
-
 def send_simple_message(text):
     """간단한 텍스트 메시지 (디버그용)"""
     return _post_to_slack({"text": text})

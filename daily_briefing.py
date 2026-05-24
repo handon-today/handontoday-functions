@@ -331,51 +331,52 @@ def build_html(market, content, articles):
     y_cls    = "up" if yoy_up   else "down"
 
     return f"""<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
 .wrap{{padding:.75rem;max-width:390px;margin:0 auto;font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif)}}
 .hdr{{background:#1a1a1f;border-radius:12px;padding:.85rem 1rem;margin-bottom:.5rem}}
-.hdr-eye{{font-size:10px;color:#888;font-family:monospace;letter-spacing:.08em;margin-bottom:4px}}
-.hdr-title{{font-size:16px;font-weight:500;color:#fff;margin-bottom:8px;line-height:1}}
+.hdr-eye{{font-size:13px;color:#888;font-family:monospace;letter-spacing:.08em;margin-bottom:4px}}
+.hdr-title{{font-size:20px;font-weight:500;color:#fff;margin-bottom:8px;line-height:1}}
 .hdr-lead{{display:flex;flex-direction:column;gap:4px}}
-.hdr-line{{font-size:12px;color:#bbb;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.hdr-line{{font-size:15px;color:#bbb;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .hdr-num{{color:#c0392b;margin-right:4px;font-weight:500}}
 .grid2{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;margin-bottom:3px}}
 .mc{{background:var(--color-background-secondary,#f5f5f5);border-radius:6px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center}}
-.mc-name{{font-size:13px;font-weight:400;color:var(--color-text-secondary,#888);line-height:1;margin-bottom:3px}}
-.mc-val{{font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1}}
+.mc-name{{font-size:15px;font-weight:400;color:var(--color-text-secondary,#888);line-height:1;margin-bottom:3px}}
+.mc-val{{font-size:16px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1}}
 .mc-right{{text-align:right;flex-shrink:0;margin-left:6px}}
-.mc-chg{{font-size:11px;font-family:monospace;white-space:nowrap;line-height:1;margin-bottom:2px}}
-.mc-pct{{font-size:10px;font-family:monospace;white-space:nowrap;line-height:1}}
+.mc-chg{{font-size:14px;font-family:monospace;white-space:nowrap;line-height:1;margin-bottom:2px}}
+.mc-pct{{font-size:13px;font-family:monospace;white-space:nowrap;line-height:1}}
 .up{{color:#A32D2D}}.down{{color:#185FA5}}
 .dong-card{{background:var(--color-background-secondary,#f5f5f5);border-radius:6px;padding:8px 10px;margin-bottom:3px}}
 .dong-inner{{display:grid;grid-template-columns:1fr 1px 1fr;align-items:start}}
 .dong-sep{{background:var(--color-border-tertiary,#ddd)}}
 .dong-col{{padding:0 8px;display:flex;justify-content:space-between;align-items:center}}
 .dong-col:first-child{{padding-left:0}}
-.dong-label{{font-size:10px;color:var(--color-text-secondary,#888);font-family:monospace;margin-bottom:4px}}
-.dong-val{{font-size:14px;font-weight:500;line-height:1;margin-bottom:2px}}
-.dong-chg{{font-size:11px;font-family:monospace;line-height:1;margin-bottom:2px;white-space:nowrap}}
-.dong-pct{{font-size:10px;font-family:monospace;line-height:1;white-space:nowrap}}
-.note{{font-size:10px;color:var(--color-text-secondary,#999);font-style:italic;margin:.4rem 0 .75rem}}
+.dong-label{{font-size:13px;color:var(--color-text-secondary,#888);font-family:monospace;margin-bottom:4px}}
+.dong-val{{font-size:17px;font-weight:500;line-height:1;margin-bottom:2px}}
+.dong-chg{{font-size:14px;font-family:monospace;line-height:1;margin-bottom:2px;white-space:nowrap}}
+.dong-pct{{font-size:13px;font-family:monospace;line-height:1;white-space:nowrap}}
+.note{{font-size:13px;color:var(--color-text-secondary,#999);font-style:italic;margin:.4rem 0 .75rem}}
 .divider{{height:.5px;background:var(--color-border-tertiary,#e0e0e0);margin:.6rem 0}}
 .sec-head{{display:flex;align-items:center;gap:6px;margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--color-border-tertiary,#e0e0e0)}}
-.sec-title{{font-size:11px;font-weight:500;color:var(--color-text-secondary,#888);letter-spacing:.04em}}
+.sec-title{{font-size:14px;font-weight:500;color:var(--color-text-secondary,#888);letter-spacing:.04em}}
 .tl{{position:relative;padding-left:1rem;margin-bottom:.75rem}}
 .tl::before{{content:"";position:absolute;left:4px;top:0;bottom:0;width:1px;background:var(--color-border-secondary,#ddd)}}
 .ti{{position:relative;padding-bottom:.75rem}}
 .ti::before{{content:"";position:absolute;left:-12px;top:4px;width:7px;height:7px;border-radius:50%}}
 .ti.k::before{{background:#A32D2D}}.ti.g::before{{background:#185FA5}}.ti.a::before{{background:#BA7517}}
-.tc{{font-size:10px;font-weight:500;letter-spacing:.05em;margin-bottom:2px}}
+.tc{{font-size:13px;font-weight:500;letter-spacing:.05em;margin-bottom:2px}}
 .tc.k{{color:#A32D2D}}.tc.g{{color:#185FA5}}.tc.a{{color:#BA7517}}
-.tt{{font-size:13px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1.3;margin-bottom:2px}}
-.td{{font-size:11px;color:var(--color-text-secondary,#666);line-height:1.45}}
-.fp{{font-size:12px;color:var(--color-text-primary,#1a1a1a);line-height:1.55;padding:5px 0;border-bottom:.5px solid var(--color-border-tertiary,#e0e0e0)}}
+.tt{{font-size:16px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1.3;margin-bottom:2px}}
+.td{{font-size:14px;color:var(--color-text-secondary,#666);line-height:1.45}}
+.fp{{font-size:15px;color:var(--color-text-primary,#1a1a1a);line-height:1.55;padding:5px 0;border-bottom:.5px solid var(--color-border-tertiary,#e0e0e0)}}
 .fp:last-child{{border-bottom:none}}
 .sbox{{border:.5px solid var(--color-border-secondary,#ddd);border-radius:6px;padding:.65rem .85rem;margin-top:.6rem}}
-.slabel{{font-size:10px;color:#A32D2D;font-weight:500;letter-spacing:.05em;margin-bottom:3px}}
-.stext{{font-size:12px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1.5}}
-.byline{{font-size:10px;color:var(--color-text-secondary,#999);font-style:italic;text-align:right;margin-top:.5rem}}
+.slabel{{font-size:13px;color:#A32D2D;font-weight:500;letter-spacing:.05em;margin-bottom:3px}}
+.stext{{font-size:15px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1.5}}
+.byline{{font-size:13px;color:var(--color-text-secondary,#999);font-style:italic;text-align:right;margin-top:.5rem}}
 </style>
 <div class="wrap">
   <div class="hdr">
@@ -508,7 +509,14 @@ def run_daily_briefing(engine, pipeline_run_id=None):
         article_id = save_to_db(engine, body_html, total_cost, pipeline_run_id)
 
         print(f"\n  ✅ 브리핑 완료 — 비용: ${total_cost:.4f} (≈{total_cost*1400:.1f}원)")
-        return {"success": True, "article_id": article_id, "cost_usd": total_cost}
+        # title, slug는 save_to_db에서 저장한 값 재사용
+        briefing_title = f"🐷 한돈투데이 모닝 브리핑 — {datetime.now(KST).strftime('%-m월 %-d일')}"
+        from slugify import slugify
+        import re as _re
+        _clean = _re.sub(r'[^\w\s가-힣a-zA-Z0-9-]', '', briefing_title)
+        briefing_slug = slugify(_clean, max_length=100, word_boundary=True)
+        return {"success": True, "article_id": article_id, "cost_usd": total_cost,
+                "title": briefing_title, "slug": briefing_slug}
 
     except Exception as e:
         import traceback

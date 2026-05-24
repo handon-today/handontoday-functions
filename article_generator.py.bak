@@ -432,11 +432,7 @@ def generate_article_from_pair(pair):
     a = pair["article_a"]
     b = pair["article_b"]
     
-    # _category_override가 있으면 우선 사용 (매칭 단계에서 명시적으로 지정된 경우)
-    if "_category_override" in pair:
-        is_overseas = (pair["_category_override"] == "글로벌")
-    else:
-        is_overseas = is_overseas_pair(pair)
+    is_overseas = is_overseas_pair(pair)
     system_prompt = ARTICLE_SYSTEM_PROMPT_OVERSEAS if is_overseas else ARTICLE_SYSTEM_PROMPT_KOREA
     
     user_message = f"""다음 두 기사를 참고해 새로운 한국어 양돈 기사를 작성해줘.
@@ -748,17 +744,24 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
     """
     파일 대신 메모리에 있는 articles 리스트를 직접 받아 처리.
     Cloud Functions에서 사용.
-
-    국내 2쌍 + 글로벌 2쌍 = 항상 4건 생성 (반반 균형).
-    국내 기사 부족 시 글로벌로 보충해서 합계 4건 유지.
+    
+    Args:
+        articles: 기사 리스트 (korea + overseas 합친 것)
+        test_mode: True면 1쌍만 생성
+        max_pairs: 최대 짝 수
+        recent_hours: 최근 N시간 이내 기사만
+        save_files: True면 로컬 파일에도 저장 (테스트용), False면 결과만 반환
+    
+    Returns:
+        생성된 기사 리스트
     """
     print(f"\n{'='*60}")
     print(f"  한돈투데이 기사 생성: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print(f"  모델: {MODEL}")
     print(f"{'='*60}")
-
+    
     print(f"\n[입력] 총 {len(articles)}건")
-
+    
     # 국내 / 아시아 / 영어권 분리
     korea_articles  = [a for a in articles if a.get("source_type") == "korea"]
     asia_articles   = [a for a in articles if a.get("region") == "asia"]
@@ -767,58 +770,31 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
     # 아시아 6:영어권 4 비중으로 해외 풀 구성
     overseas_pool = build_overseas_pool(asia_articles, global_articles, pool_size=12)
 
-    # 각각 최신 필터
-    korea_pool    = filter_recent_articles(korea_articles, hours=recent_hours)
-    overseas_pool = filter_recent_articles(overseas_pool,  hours=recent_hours)
+    # 합쳐서 최신순 필터
+    all_for_matching = korea_articles + overseas_pool
+    all_for_matching = filter_recent_articles(all_for_matching, hours=recent_hours)
 
-    print(f"[분리] 국내 {len(korea_pool)}건 / 해외 {len(overseas_pool)}건 (필터 후)")
+    print(f"[분리] 국내 {len(korea_articles)}건 / 아시아 {len(asia_articles)}건 / 영어권 {len(global_articles)}건")
+    print(f"[풀] 매칭 대상: 국내 {len(korea_articles)}건 + 해외 {len(overseas_pool)}건 = {len(all_for_matching)}건")
 
-    # ── 목표 쌍 수 계산 ───────────────────────────────────────
-    TOTAL_PAIRS      = 4
-    target_korea     = 2
-    max_korea_pairs  = len(korea_pool) // 2
-    actual_korea     = min(target_korea, max_korea_pairs)
-    actual_global    = TOTAL_PAIRS - actual_korea
+    articles = all_for_matching  # 이후 코드와 변수명 통일
 
-    print(f"[목표] 국내 {actual_korea}쌍 + 글로벌 {actual_global}쌍 = {TOTAL_PAIRS}건")
-
-    # ── 국내 매칭 ─────────────────────────────────────────────
-    korea_pairs = []
-    if actual_korea > 0 and len(korea_pool) >= 2:
-        print(f"\n[국내 매칭] {len(korea_pool)}건 → {actual_korea}쌍 요청")
-        korea_pairs = match_articles_with_ai(korea_pool, max_pairs=actual_korea)
-        for p in korea_pairs:
-            p["_category_override"] = "국내"
-        print(f"  → {len(korea_pairs)}쌍 확정")
-
-    # 국내 매칭이 목표보다 적으면 글로벌로 추가 보충
-    shortfall      = actual_korea - len(korea_pairs)
-    actual_global += shortfall
-    if shortfall > 0:
-        print(f"  ⚠️ 국내 {shortfall}쌍 부족 → 글로벌 {actual_global}쌍으로 보충")
-
-    # ── 글로벌 매칭 ───────────────────────────────────────────
-    global_pairs = []
-    if actual_global > 0 and len(overseas_pool) >= 2:
-        print(f"\n[글로벌 매칭] {len(overseas_pool)}건 → {actual_global}쌍 요청")
-        global_pairs = match_articles_with_ai(overseas_pool, max_pairs=actual_global)
-        for p in global_pairs:
-            p["_category_override"] = "글로벌"
-        print(f"  → {len(global_pairs)}쌍 확정")
-
-    pairs = korea_pairs + global_pairs
-
+    if len(articles) < 2:
+        print("\n[종료] 기사 부족")
+        return []
+    
+    pairs = match_articles_with_ai(articles, max_pairs=max_pairs)
     if not pairs:
         print("\n[종료] 짝짓기 결과 없음")
         return []
-
+    
     if test_mode:
         pairs = pairs[:1]
         print(f"\n[테스트 모드] 1쌍만 생성")
-
+    
     generated = []
     total_cost = 0.0
-
+    
     for i, pair in enumerate(pairs, 1):
         print(f"\n{'─'*60}")
         print(f"  [{i}/{len(pairs)}] 기사 생성")
@@ -829,20 +805,18 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
             generated.append(article)
         except Exception as e:
             print(f"  ❌ 생성 실패: {e}")
-
-    korea_count  = sum(1 for a in generated if a.get("category") == "국내")
-    global_count = sum(1 for a in generated if a.get("category") == "글로벌")
-
+    
     print(f"\n{'='*60}")
-    print(f"  생성 완료: {len(generated)}건 (국내 {korea_count} / 글로벌 {global_count})")
+    print(f"  생성 완료: {len(generated)}건")
     print(f"  검수 통과: {sum(1 for a in generated if a['validation']['passed'])}건")
     print(f"  총 비용: ${total_cost:.4f} (≈{total_cost*1400:.0f}원)")
     print(f"{'='*60}")
-
+    
+    # Cloud Functions에서는 로컬 파일 저장 안 함 (Cloud Storage에 main.py가 따로 저장)
     if save_files and generated:
         save_results(generated)
         save_markdown(generated)
-
+    
     return generated
 
 
