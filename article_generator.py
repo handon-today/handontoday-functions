@@ -759,19 +759,17 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
 
     print(f"\n[입력] 총 {len(articles)}건")
 
-    # 국내 / 아시아 / 영어권 분리
+    # 국내 / 아시아 / 영어권 분리 (main.py에서 region 필드로 분리해서 넘김)
     korea_articles  = [a for a in articles if a.get("source_type") == "korea"]
     asia_articles   = [a for a in articles if a.get("region") == "asia"]
     global_articles = [a for a in articles if a.get("region") == "global"]
 
-    # 아시아 6:영어권 4 비중으로 해외 풀 구성
-    overseas_pool = build_overseas_pool(asia_articles, global_articles, pool_size=12)
+    # 각각 최신 필터 적용
+    korea_pool  = filter_recent_articles(korea_articles,  hours=recent_hours)
+    asia_pool   = filter_recent_articles(asia_articles,   hours=recent_hours)
+    global_pool = filter_recent_articles(global_articles, hours=recent_hours)
 
-    # 각각 최신 필터
-    korea_pool    = filter_recent_articles(korea_articles, hours=recent_hours)
-    overseas_pool = filter_recent_articles(overseas_pool,  hours=recent_hours)
-
-    print(f"[분리] 국내 {len(korea_pool)}건 / 해외 {len(overseas_pool)}건 (필터 후)")
+    print(f"[분리] 국내 {len(korea_pool)}건 / 아시아 {len(asia_pool)}건 / 영어권 {len(global_pool)}건 (필터 후)")
 
     # ── 목표 쌍 수 계산 ───────────────────────────────────────
     TOTAL_PAIRS      = 4
@@ -801,21 +799,17 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
     # ── 글로벌 매칭: 아시아 1쌍 + 영어권 1쌍으로 분리 ──────────
     global_pairs = []
     if actual_global > 0:
-        # 아시아 / 영어권 풀 분리
-        asia_pool_filtered   = filter_recent_articles(asia_articles,   hours=recent_hours)
-        global_pool_filtered = filter_recent_articles(global_articles, hours=recent_hours)
-
         # actual_global 배분: 아시아 ceil, 영어권 floor
         import math
-        asia_global_pairs  = math.ceil(actual_global / 2)   # 2쌍이면 1, 1쌍이면 1
-        eng_global_pairs   = actual_global - asia_global_pairs  # 2쌍이면 1, 1쌍이면 0
+        asia_global_pairs = math.ceil(actual_global / 2)
+        eng_global_pairs  = actual_global - asia_global_pairs
 
         print(f"\n[글로벌 매칭] 아시아 {asia_global_pairs}쌍 + 영어권 {eng_global_pairs}쌍 목표")
 
         # 아시아 매칭
-        if asia_global_pairs > 0 and len(asia_pool_filtered) >= 2:
-            print(f"  [아시아] {len(asia_pool_filtered)}건 → {asia_global_pairs}쌍 요청")
-            asia_pairs = match_articles_with_ai(asia_pool_filtered, max_pairs=asia_global_pairs)
+        if asia_global_pairs > 0 and len(asia_pool) >= 2:
+            print(f"  [아시아] {len(asia_pool)}건 → {asia_global_pairs}쌍 요청")
+            asia_pairs = match_articles_with_ai(asia_pool, max_pairs=asia_global_pairs)
             asia_pairs = asia_pairs[:asia_global_pairs]  # 초과 방지
             for p in asia_pairs:
                 p["_category_override"] = "글로벌"
@@ -825,9 +819,9 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
             asia_pairs = []
 
         # 영어권 매칭
-        if eng_global_pairs > 0 and len(global_pool_filtered) >= 2:
-            print(f"  [영어권] {len(global_pool_filtered)}건 → {eng_global_pairs}쌍 요청")
-            eng_pairs = match_articles_with_ai(global_pool_filtered, max_pairs=eng_global_pairs)
+        if eng_global_pairs > 0 and len(global_pool) >= 2:
+            print(f"  [영어권] {len(global_pool)}건 → {eng_global_pairs}쌍 요청")
+            eng_pairs = match_articles_with_ai(global_pool, max_pairs=eng_global_pairs)
             eng_pairs = eng_pairs[:eng_global_pairs]  # 초과 방지
             for p in eng_pairs:
                 p["_category_override"] = "글로벌"

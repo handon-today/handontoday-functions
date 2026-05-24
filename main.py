@@ -171,6 +171,25 @@ def run_pipeline(request):
     print(f"  실행 시각: {get_kst_now()}")
     print(f"{'='*60}")
 
+    # ── 중복 실행 방지: 최근 30분 내 실행 여부 확인 ──────────
+    try:
+        with db_manager.get_engine().connect() as _conn:
+            recent = _conn.execute(text("""
+                SELECT id, started_at FROM pipeline_runs
+                WHERE started_at >= NOW() - INTERVAL '30 minutes'
+                ORDER BY started_at DESC LIMIT 1
+            """)).fetchone()
+        if recent:
+            print(f"\n[중복 방지] 최근 30분 내 실행 존재 (id={recent[0]}, {recent[1]}) — 종료")
+            return (
+                '{"skipped": true, "reason": "duplicate run within 30 minutes"}',
+                200,
+                {"Content-Type": "application/json"},
+            )
+    except Exception as e:
+        print(f"  ⚠️ 중복 체크 실패 (계속 진행): {e}")
+    # ─────────────────────────────────────────────────────────
+
     stats = {
         "timestamp": timestamp,
         "started_at": get_kst_now(),
