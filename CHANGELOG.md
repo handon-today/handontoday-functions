@@ -75,3 +75,20 @@
 ### 변경 파일
 - `article_generator.py` — 글로벌 매칭 아시아/영어권 분리
 - `main.py` — overseas_result 직접 전달
+
+## v3.2.5 — 2026-05-24
+**리비전**: handon-news-pipeline-00032-raf
+
+### 변경 내용
+- 돈가 DB 연동 완료 (ekape API 완전 대체)
+  - `dong_price` 테이블 생성 (date, price, source)
+  - `korea_crawler.py`: pigpeople.net 기사에서 돈가 파싱 → DB 저장
+  - `daily_briefing.py`: ekape API 대신 DB에서 조회
+    - 오늘 돈가: 어제 날짜 DB 조회
+    - 전년 비교: 전년 동월 평균 조회
+  - `main.py`: 국내 크롤링 후 돈가 파싱 + DB 저장 추가
+
+### 변경 파일
+- `korea_crawler.py` — parse_dongga_from_articles(), save_dongga_to_db() 추가
+- `daily_briefing.py` — _fetch_dongga() DB 조회로 교체, collect_market_data() engine 전달
+- `main.py` — 돈가 파싱 + 저장 단계 추가 (Step 1.5)
