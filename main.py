@@ -294,10 +294,19 @@ def run_pipeline(request):
             return _make_response(stats, 200)
 
         # ── 3. AI 기사 생성 ───────────────────────────
-        print(f"\n[3/5] AI 기사 생성 (입력 {len(all_raw)}건)")
+        # overseas_result의 asia/global을 article_generator에 그대로 넘겨
+        # 내부에서 국내2쌍 + 아시아1쌍 + 영어권1쌍으로 분리 매칭
+        all_for_generator = (
+            korea_articles
+            + overseas_result.get("asia", [])
+            + overseas_result.get("global", [])
+        )
+        print(f"\n[3/5] AI 기사 생성 (국내 {len(korea_articles)}건 + "
+              f"아시아 {len(overseas_result.get('asia',[]))}건 + "
+              f"영어권 {len(overseas_result.get('global',[]))}건)")
         try:
             generated = article_generator.run_pipeline_from_data(
-                all_raw,
+                all_for_generator,
                 test_mode=False,
                 max_pairs=4,
                 recent_hours=24,

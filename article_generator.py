@@ -797,14 +797,43 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
     if shortfall > 0:
         print(f"  ⚠️ 국내 {shortfall}쌍 부족 → 글로벌 {actual_global}쌍으로 보충")
 
-    # ── 글로벌 매칭 ───────────────────────────────────────────
+    # ── 글로벌 매칭: 아시아 1쌍 + 영어권 1쌍으로 분리 ──────────
     global_pairs = []
-    if actual_global > 0 and len(overseas_pool) >= 2:
-        print(f"\n[글로벌 매칭] {len(overseas_pool)}건 → {actual_global}쌍 요청")
-        global_pairs = match_articles_with_ai(overseas_pool, max_pairs=actual_global)
-        for p in global_pairs:
-            p["_category_override"] = "글로벌"
-        print(f"  → {len(global_pairs)}쌍 확정")
+    if actual_global > 0:
+        # 아시아 / 영어권 풀 분리
+        asia_pool_filtered   = filter_recent_articles(asia_articles,   hours=recent_hours)
+        global_pool_filtered = filter_recent_articles(global_articles, hours=recent_hours)
+
+        # actual_global 배분: 아시아 ceil, 영어권 floor
+        import math
+        asia_global_pairs  = math.ceil(actual_global / 2)   # 2쌍이면 1, 1쌍이면 1
+        eng_global_pairs   = actual_global - asia_global_pairs  # 2쌍이면 1, 1쌍이면 0
+
+        print(f"\n[글로벌 매칭] 아시아 {asia_global_pairs}쌍 + 영어권 {eng_global_pairs}쌍 목표")
+
+        # 아시아 매칭
+        if asia_global_pairs > 0 and len(asia_pool_filtered) >= 2:
+            print(f"  [아시아] {len(asia_pool_filtered)}건 → {asia_global_pairs}쌍 요청")
+            asia_pairs = match_articles_with_ai(asia_pool_filtered, max_pairs=asia_global_pairs)
+            for p in asia_pairs:
+                p["_category_override"] = "글로벌"
+            global_pairs.extend(asia_pairs)
+            print(f"  → {len(asia_pairs)}쌍 확정")
+        else:
+            asia_pairs = []
+
+        # 영어권 매칭
+        if eng_global_pairs > 0 and len(global_pool_filtered) >= 2:
+            print(f"  [영어권] {len(global_pool_filtered)}건 → {eng_global_pairs}쌍 요청")
+            eng_pairs = match_articles_with_ai(global_pool_filtered, max_pairs=eng_global_pairs)
+            for p in eng_pairs:
+                p["_category_override"] = "글로벌"
+            global_pairs.extend(eng_pairs)
+            print(f"  → {len(eng_pairs)}쌍 확정")
+        else:
+            eng_pairs = []
+
+        print(f"  글로벌 총 {len(global_pairs)}쌍 확정")
 
     pairs = korea_pairs + global_pairs
 
