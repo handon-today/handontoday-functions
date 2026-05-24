@@ -232,6 +232,16 @@ def run_pipeline(request):
             stats["errors"].append(err)
             korea_articles = []
 
+        # ── 1.5. 돈가 파싱 + DB 저장 ────────────────────
+        try:
+            dongga_price = korea_crawler.parse_dongga_from_articles(korea_articles)
+            if dongga_price:
+                korea_crawler.save_dongga_to_db(db_manager.get_engine(), dongga_price)
+            else:
+                print("  [돈가] 기사에서 돈가 파싱 실패")
+        except Exception as e:
+            print(f"  [돈가 저장 오류] {e}")
+
         # ── 2. 해외 수집 (v3: 아시아 + 영어권 분리 반환) ─
         print("\n[2/5] 해외 뉴스 수집 (아시아 + 영어권)")
         try:

@@ -359,6 +359,71 @@ def crawl_handonnews(limit=5):
 # 통합 실행
 # ──────────────────────────────────────────────────
 
+
+
+# ──────────────────────────────────────────────────
+# 돈가 파싱 + DB 저장
+# ──────────────────────────────────────────────────
+
+def parse_dongga_from_articles(articles):
+    """
+    수집된 기사 본문에서 돈가(원/kg) 파싱.
+    pigpeople.net 기사에 '경락' 또는 'kg당 X,XXX원' 패턴이 자주 등장.
+    """
+    import re
+    patterns = [
+        r'kg당\s*([\d,]+)원',
+        r'도매가격[^0-9]*([\d,]+)원',
+        r'경락가격[^0-9]*([\d,]+)원',
+        r'돈가[^0-9]*([\d,]+)원',
+        r'([\d,]+)원/㎏',
+        r'([\d,]+)원/kg',
+    ]
+    
+    for article in articles:
+        if article.get('source') != '돼지와사람':
+            continue
+        body = article.get('body', '')
+        for pattern in patterns:
+            matches = re.findall(pattern, body)
+            for m in matches:
+                price = int(m.replace(',', ''))
+                # 돈가는 통상 3,000~10,000원 범위
+                if 3000 <= price <= 10000:
+                    return price
+    return None
+
+
+def save_dongga_to_db(engine, price, date=None):
+    """돈가를 DB에 저장 (이미 있으면 스킵)"""
+    from sqlalchemy import text
+    from datetime import datetime, timedelta, timezone
+
+    KST = timezone(timedelta(hours=9))
+    if date is None:
+        # 어제 날짜 (기사에 나오는 돈가는 전날 기준)
+        date = (datetime.now(KST) - timedelta(days=1)).date()
+
+    try:
+        with engine.connect() as conn:
+            existing = conn.execute(text(
+                "SELECT price FROM dong_price WHERE date = :date"
+            ), {"date": date}).fetchone()
+
+            if existing:
+                print(f"  [돈가] {date} 이미 존재 ({existing[0]:,}원) — 스킵")
+                return False
+
+            conn.execute(text(
+                "INSERT INTO dong_price (date, price, source) VALUES (:date, :price, 'crawled')"
+            ), {"date": date, "price": price})
+            conn.commit()
+            print(f"  [돈가] {date} 저장 완료: {price:,}원/kg")
+            return True
+    except Exception as e:
+        print(f"  [돈가 DB 저장 오류] {e}")
+        return False
+
 CRAWLERS = {
     "pigpeople":   ("돼지와사람",       crawl_pigpeople),
     "pignpork":    ("한돈뉴스",         crawl_pignpork),
