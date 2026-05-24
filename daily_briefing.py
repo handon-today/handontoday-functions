@@ -116,7 +116,7 @@ def _fetch_dongga(engine=None):
         "chg_pct":    f"{'+'if chg_pct>=0 else ''}{chg_pct}%" if chg_pct is not None else "N/A",
         "chg_up":     chg >= 0 if chg is not None else True,
         "yoy":        f"{yoy_price:,}원/㎏" if yoy_price else "N/A",
-        "yoy_date":   f"{yoy_date.year-2000}년 {yoy_date.month}월 평균",
+        "yoy_date":   f"작년 동월 평균({yoy_date.year-2000}년 {yoy_date.month}월)",
         "yoy_chg":    f"{'+'if yoy_chg>=0 else ''}{yoy_chg:,}원" if yoy_chg is not None else "N/A",
         "yoy_pct":    f"{'+'if yoy_pct>=0 else ''}{yoy_pct}%" if yoy_pct is not None else "N/A",
         "yoy_up":     yoy_chg >= 0 if yoy_chg is not None else True,
@@ -221,7 +221,8 @@ SYSTEM_PROMPT = """당신은 양돈 전문 미디어 '한돈투데이(Handon Tod
 - lead1, lead2: 각 20자 이내, 마침표로 끝, 서로 다른 주제
 - news: 국내 2~3건 + 글로벌 2~3건 균형, 총 5건
 - cat 형식 예시: 국내·핵심 / 국내·시장 / 국내·정책 / 글로벌·ASF / 글로벌·수출 / 글로벌·무역
-- points: 오늘 농가가 실제로 챙겨야 할 것, 원문 기반으로만
+- points: 반드시 국내 기사(category가 국내인 것)만 참고, 한국 양돈 농가가 오늘 실제로 챙겨야 할 것, 원문 기반으로만
+- summary: 전체 뉴스(국내+글로벌) 통합 한 줄 요약
 - JSON 외 절대 출력 금지"""
 
 
