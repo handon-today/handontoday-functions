@@ -376,6 +376,9 @@ def crawl_all(limit_per_site=5):
     for key, (name, func) in CRAWLERS.items():
         print(f"\n[{name}] 수집 중...")
         articles = func(limit=limit_per_site)
+        # article_generator의 분리 로직에 필요한 source_type 필드 추가
+        for a in articles:
+            a["source_type"] = "korea"
         print(f"  → {len(articles)}건 수집 완료")
         all_articles.extend(articles)
     
