@@ -1,7 +1,7 @@
 """
 ================================================================
   일일 시황 브리핑 생성 모듈 — daily_briefing.py
-  v3.4.0
+  v3.4.1
 ================================================================
 [역할]
   매일 오전 6시 KST, 전날 발행된 기사들을 바탕으로
@@ -176,7 +176,7 @@ def _fetch_dongga(engine=None):
         "chg_pct":    "N/A",
         "chg_up":     True,
         "yoy":        f"{yoy_price:,}원/㎏" if yoy_price else "N/A",
-        "yoy_date":   f"작년 동월 평균({yoy_date.year-2000}년 {yoy_date.month}월)",
+        "yoy_date":   f"작년 월평균({yoy_date.year-2000}.{yoy_date.month:02d})",
         "yoy_chg":    f"{'+'if yoy_chg>=0 else ''}{yoy_chg:,}원" if yoy_chg is not None else "N/A",
         "yoy_pct":    f"{'+'if yoy_pct>=0 else ''}{yoy_pct}%" if yoy_pct is not None else "N/A",
         "yoy_up":     yoy_chg >= 0 if yoy_chg is not None else True,
