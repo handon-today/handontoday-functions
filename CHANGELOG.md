@@ -43,12 +43,6 @@
 - 데일리 브리핑 모바일 가독성 개선 (iPhone 15 Pro 기준)
   - viewport 메타태그 추가 (모바일 스케일링 정상화)
   - 전체 폰트 사이즈 +3~4px 업스케일
-    - 헤더 eye: 10→13px, 제목: 16→20px, 부제: 12→15px
-    - 지표 이름/값: 13→15/16px, 등락: 11→14px, %: 10→13px
-    - 돈가 레이블: 10→13px, 값: 14→17px
-    - 뉴스 카테고리: 10→13px, 제목: 13→16px, 설명: 11→14px
-    - 포인트/요약: 12→15px, 한줄요약: 12→15px
-    - byline/note: 10→13px
 
 ### 변경 파일
 - `daily_briefing.py` — CSS 폰트 사이즈 전체 업스케일 + viewport 추가
@@ -58,19 +52,13 @@
 
 ### 변경 내용
 - `korea_crawler.py`: 각 기사에 `source_type="korea"` 필드 추가
-  - article_generator 내부 국내/글로벌 분리 로직의 핵심 수정
 
 ## v3.2.4 — 2026-05-24
 **리비전**: handon-news-pipeline-00031-lof
 
 ### 변경 내용
 - `article_generator.py`: 글로벌 매칭을 아시아 1쌍 + 영어권 1쌍으로 분리
-  - 기존: 해외 풀 전체를 AI에 넘겨 글로벌 2쌍 생성
-  - 변경: 아시아 풀 따로, 영어권 풀 따로 매칭 → 균형 보장
-- `main.py`: 중복 풀 구성 제거
-  - 기존: main.py에서 overseas_pool 구성 후 article_generator에 전달
-  - 변경: overseas_result(asia/global 분리된 원본)를 직접 전달
-  - article_generator 내부에서 국내/아시아/영어권 3분리 매칭
+- `main.py`: 중복 풀 구성 제거, overseas_result 직접 전달
 
 ### 변경 파일
 - `article_generator.py` — 글로벌 매칭 아시아/영어권 분리
@@ -81,14 +69,101 @@
 
 ### 변경 내용
 - 돈가 DB 연동 완료 (ekape API 완전 대체)
-  - `dong_price` 테이블 생성 (date, price, source)
+  - `dong_price` 테이블 생성
   - `korea_crawler.py`: pigpeople.net 기사에서 돈가 파싱 → DB 저장
-  - `daily_briefing.py`: ekape API 대신 DB에서 조회
-    - 오늘 돈가: 어제 날짜 DB 조회
-    - 전년 비교: 전년 동월 평균 조회
-  - `main.py`: 국내 크롤링 후 돈가 파싱 + DB 저장 추가
+  - `daily_briefing.py`: DB에서 조회
 
 ### 변경 파일
 - `korea_crawler.py` — parse_dongga_from_articles(), save_dongga_to_db() 추가
-- `daily_briefing.py` — _fetch_dongga() DB 조회로 교체, collect_market_data() engine 전달
-- `main.py` — 돈가 파싱 + 저장 단계 추가 (Step 1.5)
+- `daily_briefing.py` — _fetch_dongga() DB 조회로 교체
+- `main.py` — 돈가 파싱 + 저장 단계 추가
+
+## v3.3.0 — 2026-05-25
+**리비전**: handon-news-pipeline-00037-boc ~ 00038-gab
+
+### 변경 내용
+- `daily_briefing.py`: 브리핑 UI 대폭 개선
+  - 시장 지표 소제목 4섹션 추가 (국내증시/해외증시/사료·선물/환율)
+  - 돈가 섹션 소제목 추가
+  - 헤더 텍스트 수정: "HANDON TODAY · 06:00 KST" → "매일 아침 오전 6시 · 하루를 시작하는 뉴스"
+  - 돈가 레이블 중복 수정 ("작년 동일 (작년 동월 평균)" → "작년 동월 평균")
+
+### 변경 파일
+- `daily_briefing.py` — 소제목, 헤더, 레이블 수정
+
+## v3.3.1 — 2026-05-25
+**리비전**: handon-news-pipeline-00039-gus
+
+### 변경 내용
+- `unsplash_helper.py` 완전 재작성
+  - 프롬프트 개선: 2~3단어 → 4~5단어, Unsplash 촬영 가능 장면 기반
+  - pig/pork/hog/piglet 중 랜덤 강제 포함
+  - 폴백 체인 4단계: Gemini키워드 → 마지막단어제거 → 또제거 → 단어1개
+  - Unsplash timeout 10초 → 5초
+
+### 변경 파일
+- `unsplash_helper.py` — 전면 재작성
+
+## v3.3.2 — 2026-05-25
+**리비전**: handon-news-pipeline-00040-loh
+
+### 변경 내용
+- `article_generator.py`: 이미지 병렬처리 버그 수정
+  - 기존: run_pipeline()에만 ThreadPoolExecutor 있었음
+  - 수정: main.py가 호출하는 run_pipeline_from_data()에 올바르게 추가
+  - generate_article_from_pair()에서 image_url 호출 제거 → None으로
+- `db_manager.py`: slug 중복 충돌 처리
+  - 23505 에러 시 uuid suffix 추가 후 최대 3회 재시도
+
+### 변경 파일
+- `article_generator.py` — 이미지 병렬처리 올바른 함수에 적용
+- `db_manager.py` — slug 중복 uuid 재시도
+
+## v3.3.3 — 2026-05-25
+**리비전**: handon-news-pipeline-00041-quc
+
+### 변경 내용
+- `daily_briefing.py`: 브리핑 썸네일 image_url 추가
+  - INSERT 쿼리에 image_url 컬럼 추가
+  - 브리핑 전용 커버 이미지 고정: https://handontoday.com/static/images/briefing_cover.png
+
+### 변경 파일
+- `daily_briefing.py` — image_url INSERT 추가
+
+## v3.3.4 — 2026-05-26
+**리비전**: handon-news-pipeline-00043-web ~ 00044-pal
+
+### 변경 내용
+- `daily_briefing.py`: 브리핑 이미지 절대 URL 수정
+  - 기존: /static/images/briefing_cover.png (상대경로)
+  - 수정: https://handontoday.com/static/images/briefing_cover.png (절대 URL)
+- `korea_crawler.py`: 돈가 파싱 패턴 개선
+  - 모든 소스(돼지와사람, 한돈뉴스 등)에서 파싱 시도
+  - 우선순위: 돼지와사람 → 한돈뉴스 → 나머지
+  - 1차 단위 패턴(kg당, /㎏) + 2차 맥락 패턴(앞뒤 50자 돼지 키워드 필수)
+  - 오탐 방지: 원선/원대/평균가격 패턴 제거, 한우/닭 오탐 차단
+
+### 변경 파일
+- `daily_briefing.py` — 절대 URL 수정
+- `korea_crawler.py` — 돈가 파싱 패턴 개선
+
+## v3.4.0 — 2026-05-26
+**리비전**: handon-news-pipeline-00045-kix ~ 00046-jej
+
+### 변경 내용
+- `daily_briefing.py`: 돈가 실시간 검색으로 전환 (가장 큰 변경)
+  - 기존: 뉴스 기사 파싱 → 매일 실패
+  - 변경: Perplexity Sonar 실시간 웹 검색 (제주·등외 제외 기준 명시)
+  - 검색 성공 시 dong_price 테이블에 자동 축적 (1년 후 일별 비교 가능)
+  - 작년 동월 평균은 DB에서 조회 유지
+- `dong_price` DB 기준값 교체
+  - 기존: mtrace.go.kr 전체 등급 (2025년 5월: 5,204원)
+  - 변경: pigpeople.net 전광판 기준, 제주·등외 제외 (2025년 5월: 5,812원)
+  - 2025년 1~12월 전체 월별 평균값 재입력
+- `daily_briefing.py`: BRIEFING_COVER SQL 안에 들어간 버그 수정
+  - image_url params 딕셔너리에 누락된 값 추가
+
+### 변경 파일
+- `daily_briefing.py` — Perplexity 돈가 검색, 버그 수정
+- `dong_price` DB — 기준값 전면 교체 (pigpeople.net 기준)
+
