@@ -368,29 +368,66 @@ def crawl_handonnews(limit=5):
 def parse_dongga_from_articles(articles):
     """
     수집된 기사 본문에서 돈가(원/kg) 파싱.
-    pigpeople.net 기사에 '경락' 또는 'kg당 X,XXX원' 패턴이 자주 등장.
+    pigpeople.net, pignpork.com 등 모든 소스에서 시도.
+
+    패턴 설계 원칙:
+    - 1차: 단위 명시 패턴 (kg당, /㎏, /kg) — 오탐 최소
+    - 2차: 돼지/돈 맥락 패턴 — 앞뒤 50자 내에 돼지 키워드 필수
     """
     import re
-    patterns = [
-        r'kg당\s*([\d,]+)원',
-        r'도매가격[^0-9]*([\d,]+)원',
-        r'경락가격[^0-9]*([\d,]+)원',
-        r'돈가[^0-9]*([\d,]+)원',
+
+    # 1차: 단위가 명확 + 문맥상 돼지 전용 패턴 (오탐 최소)
+    unit_patterns = [
+        r'kg당\s*([\d,]+)원',   # "kg당 5,480원" — 돈가 기사에서만 씀
+        r'㎏당\s*([\d,]+)원',   # "㎏당 5,480원"
+    ]
+
+    # 2차: 맥락 의존 패턴 — 앞뒤 50자 내에 돼지 키워드 필수
+    context_patterns = [
         r'([\d,]+)원/㎏',
         r'([\d,]+)원/kg',
+        r'경락가격[^0-9]*([\d,]+)원',
+        r'경락가[^0-9]*([\d,]+)원',
+        r'도매가격[^0-9]*([\d,]+)원',
+        r'돈가[^0-9]*([\d,]+)원',
+        r'돼지값[^0-9]*([\d,]+)원',
     ]
-    
-    for article in articles:
-        if article.get('source') != '돼지와사람':
-            continue
+    pig_keywords = re.compile(r'돼지|돈가|한돈|양돈|돈육|돼지고기')
+
+    # 우선순위: 돼지와사람 → 한돈뉴스 → 나머지
+    priority = ['돼지와사람', '한돈뉴스']
+    sorted_articles = (
+        [a for a in articles if a.get('source') in priority] +
+        [a for a in articles if a.get('source') not in priority]
+    )
+
+    for article in sorted_articles:
         body = article.get('body', '')
-        for pattern in patterns:
-            matches = re.findall(pattern, body)
-            for m in matches:
+        if not body:
+            continue
+
+        # 1차: 단위 명시 패턴
+        for pattern in unit_patterns:
+            for m in re.findall(pattern, body):
                 price = int(m.replace(',', ''))
-                # 돈가는 통상 3,000~10,000원 범위
                 if 3000 <= price <= 10000:
+                    print(f"  [돈가] {article.get('source','?')} 1차 파싱 성공: {price:,}원")
                     return price
+
+        # 2차: 맥락 패턴 — 매칭 위치 앞뒤 50자에 돼지 키워드 있을 때만
+        for pattern in context_patterns:
+            for match in re.finditer(pattern, body):
+                m = match.group(1)
+                price = int(m.replace(',', ''))
+                if 3000 <= price <= 10000:
+                    start = max(0, match.start() - 50)
+                    end   = min(len(body), match.end() + 50)
+                    context = body[start:end]
+                    if pig_keywords.search(context):
+                        print(f"  [돈가] {article.get('source','?')} 2차 파싱 성공: {price:,}원")
+                        return price
+
+    print("  [돈가] 모든 소스에서 파싱 실패")
     return None
 
 

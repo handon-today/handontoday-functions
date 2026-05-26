@@ -62,26 +62,64 @@ def _get_ticker(name, symbol, fmt_val, fmt_chg):
         return {"name": name, "value": "N/A", "change": "N/A", "pct": "N/A", "up": True}
 
 
+def _search_dongga_perplexity():
+    """Perplexity Sonar로 전날 돈가 실시간 검색 (제주·등외 제외 기준)"""
+    import json as _json
+    import urllib.request as _req
+    import re as _re
+
+    KST = timezone(timedelta(hours=9))
+    yesterday = (datetime.now(KST) - timedelta(days=1))
+    yesterday_str = yesterday.strftime("%Y년 %m월 %d일")
+
+    api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        print("  [돈가] OPENROUTER_API_KEY 없음")
+        return None
+
+    payload = {
+        "model": "perplexity/sonar",
+        "max_tokens": 100,
+        "messages": [{
+            "role": "user",
+            "content": (
+                f"{yesterday_str} 한국 돼지 전국 평균 도매가격(제주 및 등외 제외, 원/kg)을 알려줘. "
+                f"숫자만 정수로 답해. 예: 6457"
+            )
+        }]
+    }
+    try:
+        req = _req.Request(
+            "https://openrouter.ai/api/v1/chat/completions",
+            data=_json.dumps(payload).encode(),
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST"
+        )
+        with _req.urlopen(req, timeout=20) as r:
+            result = _json.loads(r.read())
+            content = result["choices"][0]["message"]["content"].strip()
+            # 숫자만 추출
+            nums = _re.findall(r'\d{4,5}', content.replace(",", ""))
+            for n in nums:
+                price = int(n)
+                if 3000 <= price <= 12000:
+                    print(f"  [돈가] Perplexity 검색 성공: {price:,}원/kg")
+                    return price
+        print(f"  [돈가] Perplexity 응답에서 가격 추출 실패: {content}")
+    except Exception as e:
+        print(f"  [돈가] Perplexity 검색 오류: {e}")
+    return None
+
+
 def _fetch_dongga(engine=None):
-    """돈가 — Cloud SQL DB에서 조회 (ekape API 대체)"""
+    """돈가 — Perplexity Sonar 실시간 검색 + DB 월평균 비교"""
     from sqlalchemy import text as _text
     KST = timezone(timedelta(hours=9))
-    yesterday  = (datetime.now(KST) - timedelta(days=1)).date()
-    day_before = (datetime.now(KST) - timedelta(days=2)).date()
-    yoy_date   = (datetime.now(KST) - timedelta(days=365)).date()
-
-    def _get_price_from_db(target_date):
-        if engine is None:
-            return None
-        try:
-            with engine.connect() as conn:
-                row = conn.execute(_text(
-                    "SELECT price FROM dong_price WHERE date = :d"
-                ), {"d": target_date}).fetchone()
-                return row[0] if row else None
-        except Exception as e:
-            print(f"  [돈가 DB 오류] {e}")
-            return None
+    yesterday = (datetime.now(KST) - timedelta(days=1)).date()
+    yoy_date  = (datetime.now(KST) - timedelta(days=365)).date()
 
     def _get_month_avg_from_db(year, month):
         if engine is None:
@@ -95,26 +133,48 @@ def _fetch_dongga(engine=None):
                 ), {"y": year, "m": month}).fetchone()
                 return int(row[0]) if row and row[0] else None
         except Exception as e:
-            print(f"  [돈가 월평균 DB 오류] {e}")
+            print(f"  [돈가 DB 오류] {e}")
             return None
 
-    today_price  = _get_price_from_db(yesterday)
-    before_price = _get_price_from_db(day_before)
-    yoy_price    = _get_month_avg_from_db(yoy_date.year, yoy_date.month)
+    def _save_to_db(target_date, price):
+        """오늘 돈가 DB에 저장 (나중에 과거 비교용으로 축적)"""
+        if engine is None:
+            return
+        try:
+            with engine.begin() as conn:
+                existing = conn.execute(_text(
+                    "SELECT 1 FROM dong_price WHERE date = :d"
+                ), {"d": target_date}).fetchone()
+                if not existing:
+                    conn.execute(_text(
+                        "INSERT INTO dong_price (date, price, source) "
+                        "VALUES (:d, :p, 'perplexity_daily')"
+                    ), {"d": target_date, "p": price})
+                    print(f"  [돈가] DB 저장 완료: {target_date} {price:,}원")
+        except Exception as e:
+            print(f"  [돈가 DB 저장 오류] {e}")
 
-    chg     = round(today_price - before_price) if today_price and before_price else None
-    chg_pct = round(chg / before_price * 100, 2) if chg and before_price else None
+    # 1. Perplexity로 전날 돈가 검색
+    today_price = _search_dongga_perplexity()
+
+    # 2. 검색 성공 시 DB에도 저장 (자동 축적)
+    if today_price:
+        _save_to_db(yesterday, today_price)
+
+    # 3. 작년 동월 평균은 DB에서 조회
+    yoy_price = _get_month_avg_from_db(yoy_date.year, yoy_date.month)
+
     yoy_chg = round(today_price - yoy_price) if today_price and yoy_price else None
     yoy_pct = round(yoy_chg / yoy_price * 100, 2) if yoy_chg and yoy_price else None
 
-    print(f"  [돈가] {yesterday}: {today_price}원, 전일대비: {chg}원, 전년동월평균: {yoy_price}원")
+    print(f"  [돈가] {yesterday}: {today_price}원, 전년동월평균: {yoy_price}원")
 
     return {
         "today":      f"{today_price:,}원/㎏" if today_price else "N/A",
         "today_date": yesterday.strftime("%-m/%-d"),
-        "chg":        f"{'+'if chg>=0 else ''}{chg:,}원" if chg is not None else "N/A",
-        "chg_pct":    f"{'+'if chg_pct>=0 else ''}{chg_pct}%" if chg_pct is not None else "N/A",
-        "chg_up":     chg >= 0 if chg is not None else True,
+        "chg":        "N/A",
+        "chg_pct":    "N/A",
+        "chg_up":     True,
         "yoy":        f"{yoy_price:,}원/㎏" if yoy_price else "N/A",
         "yoy_date":   f"작년 동월 평균({yoy_date.year-2000}년 {yoy_date.month}월)",
         "yoy_chg":    f"{'+'if yoy_chg>=0 else ''}{yoy_chg:,}원" if yoy_chg is not None else "N/A",
