@@ -521,10 +521,9 @@ def save_to_db(engine, body_html, cost_usd, pipeline_run_id=None):
     title = f"🐷 한돈투데이 모닝 브리핑 — {now_kst.strftime('%-m월 %-d일')}"
     slug  = f"morning-briefing-{now_kst.strftime('%Y-%m-%d')}"
 
-    sql = text("""
-        # 브리핑 전용 커버 이미지
-        BRIEFING_COVER = "https://handontoday.com/static/images/briefing_cover.png"
+    BRIEFING_COVER = "https://handontoday.com/static/images/briefing_cover.png"
 
+    sql = text("""
         INSERT INTO generated_articles
           (title, deck, body, body_html, body_markdown, category, match_reason,
            image_url, validation_passed, cost_usd, publish_status,
@@ -538,15 +537,16 @@ def save_to_db(engine, body_html, cost_usd, pipeline_run_id=None):
 
     with engine.begin() as conn:
         row = conn.execute(sql, {
-            "title":     title,
-            "deck":      "전일 주요 시장 지표와 뉴스 요약을 전해드립니다.",
-            "body":      "일일 시황 브리핑",
-            "body_html": body_html,
+            "title":        title,
+            "deck":         "전일 주요 시장 지표와 뉴스 요약을 전해드립니다.",
+            "body":         "일일 시황 브리핑",
+            "body_html":    body_html,
             "body_markdown": "일일 시황 브리핑",
-            "cost_usd":  cost_usd,
-            "now":       now_kst.astimezone(timezone.utc),
-            "run_id":    pipeline_run_id,
-            "slug":      slug,
+            "image_url":    BRIEFING_COVER,
+            "cost_usd":     cost_usd,
+            "now":          now_kst.astimezone(timezone.utc),
+            "run_id":       pipeline_run_id,
+            "slug":         slug,
         }).fetchone()
 
     print(f"  [브리핑] DB 저장 완료 — id={row[0]}, title={title}")
