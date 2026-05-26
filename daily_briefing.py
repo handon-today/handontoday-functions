@@ -314,13 +314,33 @@ def _tl_item(n, articles_map):
 
 
 def build_html(market, content, articles):
-    """확정 UI HTML 생성"""
+    """확정 UI HTML 생성 — 섹션 소제목 포함"""
     dong = market["dongga"]
     today_str = datetime.now(KST).strftime("%Y년 %m월 %d일")
-    keys = ["kospi","kosdaq","nasdaq","sp500","usd_krw","eur_krw","corn","soymeal"]
+
+    # 섹션별 키 구분
+    section_domestic = ["kospi", "kosdaq"]
+    section_overseas = ["nasdaq", "sp500"]
+    section_feed     = ["corn", "soymeal"]
+    section_forex    = ["usd_krw", "eur_krw"]
+
+    def _section(label, keys):
+        cards = "".join(_card(market[k]) for k in keys)
+        return (
+            f'<div class="mkt-section">' +
+            f'<div class="mkt-label">{label}</div>' +
+            f'<div class="grid2">{cards}</div>' +
+            f'</div>'
+        )
+
+    market_html = (
+        _section("국내 증시", section_domestic) +
+        _section("해외 증시", section_overseas) +
+        _section("사료·선물", section_feed) +
+        _section("환율",     section_forex)
+    )
 
     articles_map = {a["id"]: a for a in articles}
-    cards_html    = "".join(_card(market[k]) for k in keys)
     timeline_html = "".join(_tl_item(n, articles_map) for n in content.get("news", [])[:5])
     points_html   = "".join(f'<div class="fp">{p}</div>' for p in content.get("points", []))
 
@@ -342,7 +362,7 @@ def build_html(market, content, articles):
 .hdr-lead{{display:flex;flex-direction:column;gap:4px}}
 .hdr-line{{font-size:15px;color:#bbb;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .hdr-num{{color:#c0392b;margin-right:4px;font-weight:500}}
-.grid2{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;margin-bottom:3px}}
+.mkt-section{{margin-bottom:.45rem}}.mkt-label{{font-size:11px;font-weight:600;color:var(--color-text-secondary,#888);letter-spacing:.06em;text-transform:uppercase;padding:.3rem 0 .25rem;border-bottom:.5px solid var(--color-border-tertiary,#e0e0e0);margin-bottom:3px}}.grid2{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;margin-bottom:0}}
 .mc{{background:var(--color-background-secondary,#f5f5f5);border-radius:6px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center}}
 .mc-name{{font-size:15px;font-weight:400;color:var(--color-text-secondary,#888);line-height:1;margin-bottom:3px}}
 .mc-val{{font-size:16px;font-weight:500;color:var(--color-text-primary,#1a1a1a);line-height:1}}
@@ -381,15 +401,18 @@ def build_html(market, content, articles):
 </style>
 <div class="wrap">
   <div class="hdr">
-    <div class="hdr-eye">HANDON TODAY · {today_str} · 06:00 KST</div>
+    <div class="hdr-eye">매일 아침 오전 6시 · 하루를 시작하는 뉴스</div>
     <div class="hdr-title">한돈투데이 모닝 브리핑</div>
     <div class="hdr-lead">
       <div class="hdr-line"><span class="hdr-num">1.</span>{content.get("lead1","")}</div>
       <div class="hdr-line"><span class="hdr-num">2.</span>{content.get("lead2","")}</div>
     </div>
   </div>
-  <div class="grid2">{cards_html}</div>
-  <div class="dong-card">
+  {market_html}
+  <div class="mkt-section" style="margin-top:.45rem">
+    <div class="mkt-label">돈가</div>
+  </div>
+  <div class="dong-card" style="margin-top:3px">
     <div class="dong-inner">
       <div class="dong-col">
         <div>
@@ -404,7 +427,7 @@ def build_html(market, content, articles):
       <div class="dong-sep"></div>
       <div class="dong-col">
         <div>
-          <div class="dong-label">작년 동일 ({dong["yoy_date"]})</div>
+          <div class="dong-label">{dong["yoy_date"]}</div>
           <div class="dong-val" style="color:#185FA5">{dong["yoy"]}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;margin-left:6px">
@@ -439,13 +462,16 @@ def save_to_db(engine, body_html, cost_usd, pipeline_run_id=None):
     slug  = f"morning-briefing-{now_kst.strftime('%Y-%m-%d')}"
 
     sql = text("""
+        # 브리핑 전용 커버 이미지
+        BRIEFING_COVER = "https://handontoday.com/static/images/briefing_cover.png"
+
         INSERT INTO generated_articles
           (title, deck, body, body_html, body_markdown, category, match_reason,
-           validation_passed, cost_usd, publish_status,
+           image_url, validation_passed, cost_usd, publish_status,
            published_at, pipeline_run_id, generated_at, slug)
         VALUES
           (:title, :deck, :body, :body_html, :body_markdown, '국내', '일일 시황 브리핑 자동 생성',
-           true, :cost_usd, 'published',
+           :image_url, true, :cost_usd, 'published',
            :now, :run_id, :now, :slug)
         RETURNING id
     """)

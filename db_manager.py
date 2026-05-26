@@ -377,34 +377,43 @@ def insert_generated_article(article, pipeline_run_id, url_to_id_map, auto_publi
         "updated_at": now,
     }
     
+    import uuid as _uuid
     engine = get_engine()
-    
-    try:
-        with engine.begin() as conn:
-            result = conn.execute(insert_sql, params)
-            generated_id = result.scalar()
-            
-            # 원본 연결
-            source_urls = article.get("source_urls", [])
-            for position, url in enumerate(source_urls, 1):
-                raw_id = url_to_id_map.get(url)
-                if raw_id is None:
-                    print(f"  ⚠️ 원본 못 찾음: {url[:60]}")
-                    continue
-                
-                conn.execute(link_sql, {
-                    "generated_id": generated_id,
-                    "raw_id": raw_id,
-                    "position": position,
-                })
-                conn.execute(update_count_sql, {"raw_id": raw_id})
-            
-            print(f"  ✍️  generated_articles 저장: id={generated_id} slug={slug[:40]} ({publish_status})")
-            return generated_id
-    except Exception as e:
-        print(f"  ❌ generated_articles 저장 실패: {title[:50]}")
-        print(f"     원인: {str(e)[:200]}")
-        return None
+    base_slug = params["slug"]
+
+    for _attempt in range(3):
+        try:
+            with engine.begin() as conn:
+                result = conn.execute(insert_sql, params)
+                generated_id = result.scalar()
+
+                source_urls = article.get("source_urls", [])
+                for position, url in enumerate(source_urls, 1):
+                    raw_id = url_to_id_map.get(url)
+                    if raw_id is None:
+                        print(f"  ⚠️ 원본 못 찾음: {url[:60]}")
+                        continue
+                    conn.execute(link_sql, {
+                        "generated_id": generated_id,
+                        "raw_id": raw_id,
+                        "position": position,
+                    })
+                    conn.execute(update_count_sql, {"raw_id": raw_id})
+
+                print(f"  ✍️  generated_articles 저장: id={generated_id} slug={params['slug'][:40]} ({publish_status})")
+                return generated_id
+        except Exception as e:
+            if "23505" in str(e) and "slug" in str(e):
+                new_slug = f"{base_slug}-{_uuid.uuid4().hex[:6]}"
+                print(f"  ⚠️ slug 중복 → {new_slug}")
+                params["slug"] = new_slug
+                continue
+            print(f"  ❌ generated_articles 저장 실패: {title[:50]}")
+            print(f"     원인: {str(e)[:200]}")
+            return None
+
+    print(f"  ❌ slug 중복 3회 초과: {title[:50]}")
+    return None
 
 
 def _parse_date(date_str):

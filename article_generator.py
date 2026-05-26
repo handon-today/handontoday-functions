@@ -490,7 +490,7 @@ def generate_article_from_pair(pair):
         "deck": deck,
         "slug": slug,
         "category": "글로벌" if is_overseas else "국내",
-        "image_url": get_image_for_article("글로벌" if is_overseas else "국내", title),
+        "image_url": None,  # 병렬 처리로 나중에 채움
         "body": article_text,  # 레거시 (나중에 제거 예정)
         "body_markdown": article_text,
         "body_html": body_html,
@@ -855,6 +855,20 @@ def run_pipeline_from_data(articles, test_mode=False, max_pairs=4, recent_hours=
             generated.append(article)
         except Exception as e:
             print(f"  ❌ 생성 실패: {e}")
+
+    # ── 이미지 병렬 검색 ──
+    if generated:
+        print(f"\n[이미지] {len(generated)}건 병렬 검색 시작")
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _fetch_image(article):
+            cat   = article.get("category", "국내")
+            title = article.get("title", "")
+            article["image_url"] = get_image_for_article(cat, title)
+
+        with ThreadPoolExecutor(max_workers=len(generated)) as executor:
+            list(executor.map(_fetch_image, generated))
+        print(f"  ✅ 이미지 병렬 검색 완료")
 
     korea_count  = sum(1 for a in generated if a.get("category") == "국내")
     global_count = sum(1 for a in generated if a.get("category") == "글로벌")
