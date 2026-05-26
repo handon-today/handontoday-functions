@@ -1,5 +1,6 @@
 """
-Unsplash 이미지 검색 헬퍼
+Unsplash 이미지 검색 헬퍼 — unsplash_helper.py
+  v3.3.1
 - 기사 제목 → Gemini로 영문 키워드 추출 → Unsplash 검색 → 랜덤 선택
 - 폴백 체인: 1차(Gemini 키워드) → 2차(마지막 단어 제거) → 3차(또 제거) → 4차(단어 1개)
 """
