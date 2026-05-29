@@ -181,3 +181,15 @@
 
 ### 변경 파일
 - `daily_briefing.py`
+
+## v3.4.2 — 2026-05-29
+**리비전**: handon-news-pipeline-00053~
+
+### 변경 내용
+- `daily_briefing.py`: 전일 돈가 비교 N/A 수정
+  - 기존: chg/chg_pct 하드코딩 "N/A"
+  - 변경: dong_price DB에서 day_before 조회 → 실제 전일대비 표시
+  - v1.1.0 → v1.2.0
+
+### 변경 파일
+- `daily_briefing.py`

@@ -161,20 +161,41 @@ def _fetch_dongga(engine=None):
     if today_price:
         _save_to_db(yesterday, today_price)
 
-    # 3. 작년 동월 평균은 DB에서 조회
+    # 3. 전일 돈가 DB에서 조회 (어제 저장된 값)
+    day_before = (datetime.now(KST) - timedelta(days=2)).date()
+    before_price = None
+    if engine is not None:
+        try:
+            from sqlalchemy import text as _text2
+            with engine.connect() as conn:
+                row = conn.execute(_text2(
+                    "SELECT price FROM dong_price WHERE date = :d"
+                ), {"d": day_before}).fetchone()
+                before_price = int(row[0]) if row and row[0] else None
+            if before_price:
+                print(f"  [돈가] 전일({day_before}): {before_price:,}원 (DB)")
+            else:
+                print(f"  [돈가] 전일 데이터 없음 (DB 미존재)")
+        except Exception as e:
+            print(f"  [돈가 전일 조회 오류] {e}")
+
+    chg     = round(today_price - before_price) if today_price and before_price else None
+    chg_pct = round(chg / before_price * 100, 2) if chg is not None and before_price else None
+
+    # 4. 작년 동월 평균은 DB에서 조회
     yoy_price = _get_month_avg_from_db(yoy_date.year, yoy_date.month)
 
     yoy_chg = round(today_price - yoy_price) if today_price and yoy_price else None
     yoy_pct = round(yoy_chg / yoy_price * 100, 2) if yoy_chg and yoy_price else None
 
-    print(f"  [돈가] {yesterday}: {today_price}원, 전년동월평균: {yoy_price}원")
+    print(f"  [돈가] {yesterday}: {today_price}원, 전일대비: {chg}원, 전년동월평균: {yoy_price}원")
 
     return {
         "today":      f"{today_price:,}원/㎏" if today_price else "N/A",
         "today_date": yesterday.strftime("%-m/%-d"),
-        "chg":        "N/A",
-        "chg_pct":    "N/A",
-        "chg_up":     True,
+        "chg":        f"{'+'if chg>=0 else ''}{chg:,}원" if chg is not None else "N/A",
+        "chg_pct":    f"{'+'if chg_pct>=0 else ''}{chg_pct}%" if chg_pct is not None else "N/A",
+        "chg_up":     chg >= 0 if chg is not None else True,
         "yoy":        f"{yoy_price:,}원/㎏" if yoy_price else "N/A",
         "yoy_date":   f"작년 월평균({yoy_date.year-2000}.{yoy_date.month:02d})",
         "yoy_chg":    f"{'+'if yoy_chg>=0 else ''}{yoy_chg:,}원" if yoy_chg is not None else "N/A",
