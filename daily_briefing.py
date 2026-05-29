@@ -79,7 +79,7 @@ def _search_dongga_perplexity():
 
     payload = {
         "model": "perplexity/sonar",
-        "max_tokens": 1500,
+        "max_tokens": 2000,
         "messages": [{
             "role": "user",
             "content": (
@@ -227,7 +227,7 @@ def get_yesterday_articles(engine):
           AND published_at <  :end
           AND title NOT LIKE '🐷 한돈투데이 모닝 브리핑%'
         ORDER BY published_at DESC
-        LIMIT 30
+        LIMIT 15
     """)
 
     with engine.connect() as conn:
@@ -301,7 +301,7 @@ def generate_content(articles):
 
     payload = {
         "model": MODEL,
-        "max_tokens": 1500,
+        "max_tokens": 2000,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content":
@@ -598,10 +598,13 @@ def run_daily_briefing(engine, pipeline_run_id=None):
         print(f"\n  ✅ 브리핑 완료 — 비용: ${total_cost:.4f} (≈{total_cost*1400:.1f}원)")
         # title, slug는 save_to_db에서 저장한 값 재사용
         briefing_title = f"🐷 한돈투데이 모닝 브리핑 — {datetime.now(KST).strftime('%-m월 %-d일')}"
-        from slugify import slugify
-        import re as _re
-        _clean = _re.sub(r'[^\w\s가-힣a-zA-Z0-9-]', '', briefing_title)
-        briefing_slug = slugify(_clean, max_length=100, word_boundary=True)
+        try:
+            from slugify import slugify
+            import re as _re
+            _clean = _re.sub(r'[^\w\s가-힣a-zA-Z0-9-]', '', briefing_title)
+            briefing_slug = slugify(_clean, max_length=100, word_boundary=True)
+        except ImportError:
+            briefing_slug = f"morning-briefing-{datetime.now(KST).strftime('%Y-%m-%d')}"
         return {"success": True, "article_id": article_id, "cost_usd": total_cost,
                 "title": briefing_title, "slug": briefing_slug}
 
