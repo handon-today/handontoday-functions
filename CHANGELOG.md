@@ -167,3 +167,17 @@
 - `daily_briefing.py` — Perplexity 돈가 검색, 버그 수정
 - `dong_price` DB — 기준값 전면 교체 (pigpeople.net 기준)
 
+
+## v3.4.1 — 2026-05-29
+**리비전**: handon-news-pipeline-00052-rel
+
+### 변경 내용
+- `daily_briefing.py`: max_tokens 800→2000 (JSON 잘림 방지)
+- `daily_briefing.py`: 입력 기사 수 30→15건 제한 (토큰 절약)
+- `daily_briefing.py`: slugify ImportError 처리 추가 (Cloud Shell 호환)
+- `daily_briefing.py`: error 키 반환 추가 (Slack "알 수 없는 오류" 해소)
+- `daily_briefing.py`: category 국내→시황으로 변경
+- `daily_briefing.py`: 버전 v1.0.0→v1.1.0
+
+### 변경 파일
+- `daily_briefing.py`
