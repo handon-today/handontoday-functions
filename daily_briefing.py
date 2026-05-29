@@ -79,7 +79,7 @@ def _search_dongga_perplexity():
 
     payload = {
         "model": "perplexity/sonar",
-        "max_tokens": 100,
+        "max_tokens": 1500,
         "messages": [{
             "role": "user",
             "content": (
@@ -301,7 +301,7 @@ def generate_content(articles):
 
     payload = {
         "model": MODEL,
-        "max_tokens": 800,
+        "max_tokens": 1500,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content":
@@ -529,7 +529,7 @@ def save_to_db(engine, body_html, cost_usd, pipeline_run_id=None):
            image_url, validation_passed, cost_usd, publish_status,
            published_at, pipeline_run_id, generated_at, slug)
         VALUES
-          (:title, :deck, :body, :body_html, :body_markdown, '국내', '일일 시황 브리핑 자동 생성',
+          (:title, :deck, :body, :body_html, :body_markdown, '시황', '일일 시황 브리핑 자동 생성',
            :image_url, true, :cost_usd, 'published',
            :now, :run_id, :now, :slug)
         RETURNING id
@@ -587,7 +587,7 @@ def run_daily_briefing(engine, pipeline_run_id=None):
         content, cost = generate_content(articles)
         total_cost += cost
         if not content:
-            return {"success": False, "article_id": None, "cost_usd": total_cost}
+            return {"success": False, "article_id": None, "cost_usd": total_cost, "error": str(e)}
 
         # 4. HTML 생성
         body_html = build_html(market, content, articles)
@@ -609,4 +609,4 @@ def run_daily_briefing(engine, pipeline_run_id=None):
         import traceback
         print(f"  ❌ 브리핑 실패: {e}")
         print(traceback.format_exc()[:500])
-        return {"success": False, "article_id": None, "cost_usd": total_cost}
+        return {"success": False, "article_id": None, "cost_usd": total_cost, "error": str(e)}
