@@ -448,3 +448,6 @@ def _make_response(stats, status_code):
         status_code,
         {"Content-Type": "application/json; charset=utf-8"},
     )
+
+# 만평 파이프라인 진입점 노출
+from weekly_manhwa import run_manhwa_pipeline
