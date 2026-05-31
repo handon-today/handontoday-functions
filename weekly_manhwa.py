@@ -2,17 +2,23 @@
 ================================================================
   한돈투데이 주간 만평 자동 생성 파이프라인
   weekly_manhwa.py
-  v1.0.0
+  v1.1.0
 ================================================================
+
+[변경사항 v1.1.0]
+  - get_week_info(): 월 기준 주차 계산 정확도 개선
+    (월요일 기준, 해당 월의 몇 번째 월요일인지 계산)
+  - run_manhwa_pipeline(): 이번 주 만평 중복 실행 방지 추가
 
 [역할]
   매주 월요일 09:00 KST 자동 실행
-  1. 지난 7일 기사 DB 조회 → 주제 추출
-  2. Gemini 2.5 Flash Lite → 논평 문구 + 이미지 프롬프트 생성 (JSON)
-  3. 나노바나나2 (gemini-3.1-flash-image-preview) → 이미지 생성
-  4. GCS 저장
-  5. DB INSERT (category='만평')
-  6. Slack 알림
+  1. 이번 주 만평 중복 체크
+  2. 지난 7일 기사 DB 조회 → 주제 추출
+  3. Gemini 2.5 Flash Lite → 논평 문구 + 이미지 프롬프트 생성 (JSON)
+  4. 나노바나나2 (gemini-3.1-flash-image-preview) → 이미지 생성
+  5. GCS 저장
+  6. DB INSERT (category='만평')
+  7. Slack 알림
 
 [환경변수]
   OPENROUTER_API_KEY  - OpenRouter API 키
@@ -93,6 +99,79 @@ Painterly editorial illustration.
 
 
 # ──────────────────────────────────────────────────
+# 주차 계산 (v1.1.0 개선)
+# ──────────────────────────────────────────────────
+
+def get_week_info(dt):
+    """
+    월요일 기준으로 해당 월의 N주차를 계산.
+
+    규칙:
+    - 월요일이 속한 달 기준
+    - 해당 달의 첫 번째 월요일 = 1주차
+    - 두 번째 월요일 = 2주차, ...
+
+    예:
+    - 2026-06-01 (월) → 6월 1주차
+    - 2026-06-08 (월) → 6월 2주차
+    - 2026-06-29 (월) → 6월 5주차
+    """
+    year = dt.year
+    month = dt.month
+    day = dt.day
+
+    # 이 달의 첫 번째 월요일 찾기
+    first_of_month = dt.replace(day=1)
+    # weekday(): 월=0, 화=1, ..., 일=6
+    days_until_first_monday = (7 - first_of_month.weekday()) % 7
+    first_monday_day = 1 + days_until_first_monday
+
+    # 월요일이 1일이면 days_until = 0 → first_monday_day = 1
+    # 월요일이 없으면 다음 주 첫 월요일
+
+    # 이번 월요일이 몇 번째인지
+    week_of_month = ((day - first_monday_day) // 7) + 1
+
+    # GCS 키는 ISO week 기준 (파일명 중복 방지)
+    iso_year, iso_week, _ = dt.isocalendar()
+
+    title = f"{year}년 {month}월 {week_of_month}주차 한돈 만평"
+    slug = f"{year}-{month:02d}-w{week_of_month}"
+    gcs_key = f"{iso_year}-W{iso_week:02d}"
+
+    return title, slug, gcs_key
+
+
+def get_this_week_monday(dt):
+    """이번 주 월요일 00:00 KST 반환"""
+    days_since_monday = dt.weekday()  # 월=0
+    monday = dt - timedelta(days=days_since_monday)
+    return monday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+# ──────────────────────────────────────────────────
+# 중복 체크 (v1.1.0 신규)
+# ──────────────────────────────────────────────────
+
+def check_already_exists(engine, this_monday):
+    """이번 주 월요일 이후 만평이 이미 있으면 True 반환"""
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        row = conn.execute(text("""
+            SELECT id, title FROM generated_articles
+            WHERE category = '만평'
+              AND published_at >= :this_monday
+            LIMIT 1
+        """), {"this_monday": this_monday.astimezone(timezone.utc)}).fetchone()
+
+    if row:
+        print(f"  ⚠️ 이번 주 만평 이미 존재: id={row[0]}, title={row[1]}")
+        return True
+    return False
+
+
+# ──────────────────────────────────────────────────
 # 주제 추출
 # ──────────────────────────────────────────────────
 
@@ -155,7 +234,7 @@ def generate_prompt(articles):
 # ──────────────────────────────────────────────────
 
 def generate_image(image_prompt):
-    """나노바나나2로 이미지 생성 → base64 반환"""
+    """나노바나나2로 이미지 생성 → bytes 반환"""
     resp = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
         headers={
@@ -175,7 +254,6 @@ def generate_image(image_prompt):
 
     msg = resp.json()["choices"][0]["message"]
 
-    # Gemini 구조: message.content 리스트
     content = msg.get("content") or []
     if isinstance(content, list):
         for part in content:
@@ -184,17 +262,14 @@ def generate_image(image_prompt):
                 if url.startswith("data:image"):
                     return base64.b64decode(url.split(",", 1)[1])
                 else:
-                    img_resp = requests.get(url, timeout=60)
-                    return img_resp.content
+                    return requests.get(url, timeout=60).content
 
-    # message.images 구조 (Seedream 등)
     for img in msg.get("images", []):
         url = img.get("image_url", {}).get("url", "")
         if url.startswith("data:image"):
             return base64.b64decode(url.split(",", 1)[1])
         elif url:
-            img_resp = requests.get(url, timeout=60)
-            return img_resp.content
+            return requests.get(url, timeout=60).content
 
     raise ValueError(f"이미지 URL 없음. message keys: {list(msg.keys())}")
 
@@ -261,30 +336,6 @@ def save_manhwa_to_db(engine, result, image_url, published_at, title, slug):
 
 
 # ──────────────────────────────────────────────────
-# 주차 계산
-# ──────────────────────────────────────────────────
-
-def get_week_info(dt):
-    """
-    날짜에서 '0월 0주차' 표현 및 GCS용 문자열 반환
-    예: (2026년 6월 1주차, 2026-W23, 2026-06-w1)
-    """
-    year = dt.year
-    month = dt.month
-    # 해당 월의 첫 번째 월요일 기준 주차 계산
-    first_day = dt.replace(day=1)
-    # 이 달의 몇 번째 주인지 (1~5)
-    week_of_month = (dt.day + first_day.weekday()) // 7 + 1
-    iso_week = dt.isocalendar()[1]
-
-    title = f"{year}년 {month}월 {week_of_month}주차 한돈 만평"
-    slug = f"{year}-{month:02d}-w{week_of_month}"
-    gcs_key = f"{year}-W{iso_week:02d}"
-
-    return title, slug, gcs_key
-
-
-# ──────────────────────────────────────────────────
 # Cloud Functions 진입점
 # ──────────────────────────────────────────────────
 
@@ -293,7 +344,7 @@ def run_manhwa_pipeline(request):
     """주간 만평 파이프라인 — 매주 월요일 09:00 KST 실행"""
     now_kst = datetime.now(KST)
     print(f"\n{'='*50}")
-    print(f"  🎨 한돈투데이 주간 만평 파이프라인 v1.0.0")
+    print(f"  🎨 한돈투데이 주간 만평 파이프라인 v1.1.0")
     print(f"  실행 시각: {now_kst.strftime('%Y-%m-%d %H:%M KST')}")
     print(f"{'='*50}")
 
@@ -308,6 +359,15 @@ def run_manhwa_pipeline(request):
 
     try:
         engine = db_manager.get_engine()
+
+        # 0. 중복 체크 — 이번 주 만평 이미 있으면 스킵
+        this_monday = get_this_week_monday(now_kst)
+        print(f"\n[0/5] 중복 체크 (이번 주 월요일: {this_monday.strftime('%Y-%m-%d')})...")
+        if check_already_exists(engine, this_monday):
+            result["error"] = "이번 주 만평이 이미 존재합니다. 스킵합니다."
+            result["success"] = False
+            _send_slack_result(result)
+            return result, 200  # 에러가 아닌 정상 스킵
 
         # 1. 지난 주 기사 조회
         print("\n[1/5] 지난 주 기사 조회...")
@@ -337,7 +397,7 @@ def run_manhwa_pipeline(request):
 
         # 5. DB 저장 (published_at = 이번 주 월요일 09:00 KST)
         print("\n[5/5] DB 저장...")
-        published_at = now_kst.replace(hour=9, minute=0, second=0, microsecond=0)
+        published_at = this_monday.replace(hour=9, minute=0, second=0, microsecond=0)
         article_id = save_manhwa_to_db(
             engine, prompt_result, image_url, published_at, title, slug
         )
@@ -348,7 +408,7 @@ def run_manhwa_pipeline(request):
             "article_id": article_id,
             "image_url": image_url,
             "title": title,
-            "cost_usd": 0.07,  # 텍스트 ~$0.01 + 이미지 ~$0.06
+            "cost_usd": 0.07,
         })
 
     except Exception as e:
@@ -360,7 +420,6 @@ def run_manhwa_pipeline(request):
     finally:
         db_manager.close_engine()
 
-    # Slack 알림
     _send_slack_result(result)
 
     status = 200 if result["success"] else 500
@@ -373,7 +432,10 @@ def _send_slack_result(result):
     if not webhook_url:
         return
 
-    if result["success"]:
+    if result.get("error") == "이번 주 만평이 이미 존재합니다. 스킵합니다.":
+        header = "🎨 한돈투데이 만평 — 중복 스킵"
+        body = "*⚠️ 이번 주 만평이 이미 존재하여 생성을 건너뜁니다.*"
+    elif result["success"]:
         header = "🎨 한돈투데이 만평 — 생성 완료"
         body = (
             f"*✅ 만평 발행 완료*\n"
