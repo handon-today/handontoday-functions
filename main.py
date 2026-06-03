@@ -451,3 +451,6 @@ def _make_response(stats, status_code):
 
 # 만평 파이프라인 진입점 노출
 from weekly_manhwa import run_manhwa_pipeline
+
+# 미래 만평 파이프라인 진입점 노출
+from weekly_future import run_future_pipeline
