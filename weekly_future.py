@@ -2,19 +2,21 @@
 ================================================================
   한돈투데이 주간 미래 만평 자동 생성 파이프라인
   weekly_future.py
-  v1.0.0
+  v1.1.0
 ================================================================
 
+[변경사항 v1.1.0]
+  - Pillow 배지 합성 제거 (페이지 레이아웃에서 2045 표현으로 변경)
+
 [역할]
-  매주 화요일 09:00 KST 자동 실행
-  1. 이번 주 화요일 미래 만평 중복 체크
+  매주 화요일 08:00 KST 자동 실행
+  1. 이번 주 미래 만평 중복 체크
   2. 이번 주 월요일 만평의 주제(deck) DB 조회
   3. Gemini → 20년 후 풍자 장면 설계 (JSON)
   4. 나노바나나2 → 이미지 생성
-  5. Pillow → 좌상단 "2045년" 배지 합성
-  6. GCS 저장: manhwa/future-YYYY-WNN.jpg
-  7. DB INSERT (category='만평', title='미래 만평')
-  8. Slack 알림
+  5. GCS 저장: manhwa/future-YYYY-WNN.jpg
+  6. DB INSERT (category='만평', slug=future-...)
+  7. Slack 알림
 
 [환경변수]
   OPENROUTER_API_KEY  - OpenRouter API 키
@@ -38,7 +40,6 @@ import functions_framework
 
 from datetime import datetime, timezone, timedelta
 from google.cloud import storage
-from PIL import Image, ImageDraw, ImageFont
 
 import db_manager
 
@@ -52,9 +53,6 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 TEXT_MODEL  = "google/gemini-2.5-flash-lite"
 IMAGE_MODEL = "google/gemini-3.1-flash-image-preview"
-
-FUTURE_YEAR = 2045
-FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc"
 
 SYSTEM_PROMPT = """너는 20년 경력의 한국 시사만평 작가야.
 날카로운 풍자와 블랙코미디로 유명하며,
@@ -88,7 +86,7 @@ Painterly editorial cartoon.
 인물 표정은 코믹하게 과장. NOT photorealistic.
 
 [절대 금지]
-- 이미지 안 텍스트·글자·숫자 일체 (2045년 배지는 나중에 별도 합성)
+- 이미지 안 텍스트·글자·숫자 일체
 - 고어·잔인한 장면
 - 실존 인물 얼굴
 
@@ -163,7 +161,7 @@ def fetch_this_week_manhwa_topic(engine, this_monday):
 
     with engine.connect() as conn:
         row = conn.execute(text("""
-            SELECT id, title, deck, image_url
+            SELECT id, title, deck
             FROM generated_articles
             WHERE category = '만평'
               AND slug NOT LIKE 'future-%'
@@ -178,8 +176,7 @@ def fetch_this_week_manhwa_topic(engine, this_monday):
     return {
         "id": row[0],
         "title": row[1],
-        "topic": row[2],  # deck 필드 = 이번 주 주제
-        "image_url": row[3],
+        "topic": row[2],
     }
 
 
@@ -256,50 +253,6 @@ def generate_image(image_prompt):
 
 
 # ──────────────────────────────────────────────────
-# Pillow: "2045년" 배지 합성
-# ──────────────────────────────────────────────────
-
-def add_year_badge(image_bytes):
-    """이미지 좌상단에 '2045년' 배지 합성 → bytes 반환"""
-    img = Image.open(io.BytesIO(image_bytes)).convert('RGBA')
-    w, h = img.size
-
-    badge_w = int(w * 0.22)
-    badge_h = int(h * 0.08)
-    margin = int(w * 0.04)
-    radius = 10
-
-    # 배지 생성
-    badge = Image.new('RGBA', (badge_w, badge_h), (0, 0, 0, 0))
-    badge_draw = ImageDraw.Draw(badge)
-    badge_draw.rounded_rectangle(
-        [0, 0, badge_w - 1, badge_h - 1],
-        radius=radius,
-        fill=(15, 15, 15, 215),
-    )
-
-    try:
-        font = ImageFont.truetype(FONT_PATH, size=int(badge_h * 0.52))
-    except Exception:
-        font = ImageFont.load_default()
-
-    badge_draw.text(
-        (badge_w // 2, badge_h // 2),
-        f"{FUTURE_YEAR}년",
-        font=font,
-        fill=(239, 159, 39, 255),
-        anchor='mm',
-    )
-
-    result = img.copy()
-    result.paste(badge, (margin, margin), badge)
-
-    out_bytes = io.BytesIO()
-    result.convert('RGB').save(out_bytes, format='JPEG', quality=92)
-    return out_bytes.getvalue()
-
-
-# ──────────────────────────────────────────────────
 # GCS 저장
 # ──────────────────────────────────────────────────
 
@@ -343,7 +296,7 @@ def save_to_db(engine, result, manhwa_topic, image_url, published_at, title, slu
             RETURNING id
         """), {
             "title": title,
-            "deck": manhwa_topic,          # 원본 주제 (이번 주 현재 만평과 동일)
+            "deck": manhwa_topic,
             "slug": slug,
             "image_url": image_url,
             "body": result.get("satire_point", ""),
@@ -363,10 +316,10 @@ def save_to_db(engine, result, manhwa_topic, image_url, published_at, title, slu
 
 @functions_framework.http
 def run_future_pipeline(request):
-    """미래 만평 파이프라인 — 매주 화요일 09:00 KST 실행"""
+    """미래 만평 파이프라인 — 매주 화요일 08:00 KST 실행"""
     now_kst = datetime.now(KST)
     print(f"\n{'='*50}")
-    print(f"  🔮 한돈투데이 미래 만평 파이프라인 v1.0.0")
+    print(f"  🔮 한돈투데이 미래 만평 파이프라인 v1.1.0")
     print(f"  실행 시각: {now_kst.strftime('%Y-%m-%d %H:%M KST')}")
     print(f"{'='*50}")
 
@@ -384,45 +337,40 @@ def run_future_pipeline(request):
         this_monday = get_this_week_monday(now_kst)
 
         # 0. 중복 체크
-        print(f"\n[0/6] 중복 체크 (이번 주 월요일: {this_monday.strftime('%Y-%m-%d')})...")
+        print(f"\n[0/5] 중복 체크 (이번 주 월요일: {this_monday.strftime('%Y-%m-%d')})...")
         if check_already_exists(engine, this_monday):
             result["error"] = "이번 주 미래 만평이 이미 존재합니다. 스킵합니다."
             _send_slack_result(result)
             return result, 200
 
         # 1. 이번 주 월요일 만평 주제 조회
-        print("\n[1/6] 이번 주 만평 주제 조회...")
+        print("\n[1/5] 이번 주 만평 주제 조회...")
         manhwa = fetch_this_week_manhwa_topic(engine, this_monday)
         if not manhwa:
             raise ValueError("이번 주 월요일 만평이 없습니다. 월요일 만평 생성 후 재시도하세요.")
         print(f"  ✅ 주제: {manhwa['topic']}")
 
         # 2. 2045년 풍자 장면 설계
-        print("\n[2/6] Gemini가 2045년 풍자 장면 설계 중...")
+        print("\n[2/5] Gemini가 2045년 풍자 장면 설계 중...")
         future_result = generate_future_prompt(manhwa["topic"])
         print(f"  풍자: {future_result.get('satire_point')}")
         print(f"  장면: {future_result.get('scene', '')[:80]}...")
         print(f"  분위기: {future_result.get('mood')}")
 
         # 3. 이미지 생성
-        print("\n[3/6] 이미지 생성 (나노바나나2)...")
+        print("\n[3/5] 이미지 생성 (나노바나나2)...")
         image_bytes = generate_image(future_result["prompt"])
         print(f"  ✅ {len(image_bytes):,} bytes")
 
-        # 4. Pillow: 2045년 배지 합성
-        print("\n[4/6] '2045년' 배지 합성 (Pillow)...")
-        image_bytes = add_year_badge(image_bytes)
-        print(f"  ✅ {len(image_bytes):,} bytes")
-
-        # 5. GCS 저장
-        print("\n[5/6] GCS 저장...")
+        # 4. GCS 저장
+        print("\n[4/5] GCS 저장...")
         title, slug, gcs_key = get_week_info(now_kst)
         image_url = upload_to_gcs(image_bytes, gcs_key)
         print(f"  ✅ {image_url}")
 
-        # 6. DB 저장 (화요일 09:00 KST)
-        print("\n[6/6] DB 저장...")
-        published_at = now_kst.replace(hour=9, minute=0, second=0, microsecond=0)
+        # 5. DB 저장 (화요일 08:00 KST)
+        print("\n[5/5] DB 저장...")
+        published_at = now_kst.replace(hour=8, minute=0, second=0, microsecond=0)
         article_id = save_to_db(
             engine, future_result, manhwa["topic"],
             image_url, published_at, title, slug
