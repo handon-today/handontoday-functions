@@ -454,3 +454,6 @@ from weekly_manhwa import run_manhwa_pipeline
 
 # 미래 만평 파이프라인 진입점 노출
 from weekly_future import run_future_pipeline
+
+# 목요일 웹툰 파이프라인 진입점
+from weekly_webtoon_thu import run_webtoon_thu_pipeline
