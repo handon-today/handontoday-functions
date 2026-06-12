@@ -2,9 +2,9 @@
 ================================================================
   한돈투데이 N년 전 오늘 회고 파이프라인
   review_collector.py
-  v1.0.1
+  v1.0.2
 ================================================================
-[변경사항 v1.0.1]
+[변경사항 v1.0.2]
   - Slack 알림 URL에 article id 포함 (Django URL 패턴 일치)
   - 인사이트 라벨 "N년 전과 오늘" 올바르게 표시 (target_year → years_ago)
   - _build_title 불필요 변수 제거
@@ -367,10 +367,10 @@ def _insert_review_article(
         with engine.begin() as conn:
             row = conn.execute(text("""
                 INSERT INTO generated_articles
-                    (title, deck, body, category, slug, image_url,
+                    (title, deck, body, body_markdown, category, slug, image_url,
                      published_at, publish_status, created_at)
                 VALUES
-                    (:title, :deck, :body, '회고', :slug, :image_url,
+                    (:title, :deck, :body, :body, '회고', :slug, :image_url,
                      :published_at, 'published', NOW())
                 RETURNING id
             """), {
