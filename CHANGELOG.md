@@ -1,3 +1,52 @@
+## review_collector v1.0.0 ~ v1.0.2 — 2026-06-12
+**Cloud Functions**: handon-2016review-pipeline, handon-2006review-pipeline
+**배포일**: 2026-06-12 (KST)
+
+### 신규 파이프라인: "N년 전 오늘" 회고 콘텐츠
+- 10년 전(2016review): 매주 수요일 09:00 KST
+- 20년 전(2006review): 매주 토요일 09:00 KST
+- 양돈타임스 크롤링 → Gemini 기사 생성 → DB INSERT → Slack 알림
+
+### v1.0.0 — 초기 작성
+- 양돈타임스 ±4일 범위 크롤링
+- article:published_time 기준 목표 연도 기사만 필터링 (가짜 기사 제거)
+- 비양돈 콘텐츠 필터: [칼럼]/[한시]/[신화]/[의학상식]/[퀴즈]/[현장25시] 등
+- NON_PIG_KEYWORDS: 그리스 신화 관련 키워드 차단
+- Gemini 2.5 Flash Lite로 블로그형 기사 생성
+- "그 주 대한민국" + "그 주 미국" 시사 박스
+- "반복된 것 / 달라진 것" 인사이트 박스
+- 히어로 이미지: GCS 고정 (hero_10y.png, hero_20y.png)
+- slug 형식: 2016review-YYYY-MM-DD / 2006review-YYYY-MM-DD
+- category: '회고' (DB ALTER TABLE 완료)
+- main.py에 진입점 import 등록 (Cloud Functions 필수)
+
+### v1.0.1 — Red/Purple Team 리뷰 반영 (7건)
+- Slack 알림 URL에 article id 포함 (Django URL 패턴 일치)
+- 인사이트 라벨 "N년 전과 오늘" 올바르게 표시 (target_year → years_ago)
+- _build_title 불필요 변수(month/week_num/week_kor) 제거
+- 윤년 2월 29일 방어 코드 추가 (ValueError 대응)
+- HTML 엔티티 처리 html.unescape()로 통합 (&ldquo; 등 잔류 해결)
+- Gemini 응답 korea_events/us_events 리스트 타입 검증
+- db_manager.close_engine() 호출 추가
+
+### v1.0.2 — DB INSERT 컬럼 수정
+- body_markdown NOT NULL 컬럼 누락 수정 (body와 동일 값 삽입)
+- notifier.send_slack → send_simple_message 수정
+- DB 컬럼 is_published → publish_status 수정
+
+### DB 변경
+- ALTER TABLE generated_articles: category CHECK에 '회고' 추가
+
+### GCS 변경
+- gs://handontoday-articles/review/hero_10y.png 업로드
+- gs://handontoday-articles/review/hero_20y.png 업로드
+
+### 변경 파일
+- review_collector.py (신규)
+- main.py (import 추가)
+
+---
+
 
 ## v3.2.0 — 2026-05-24
 **리비전**: handon-news-pipeline-00028-loq
