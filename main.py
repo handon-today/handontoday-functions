@@ -457,3 +457,7 @@ from weekly_future import run_future_pipeline
 
 # 목요일 웹툰 파이프라인 진입점
 from weekly_webtoon_thu import run_webtoon_thu_pipeline
+
+
+# ── N년 전 오늘 회고 파이프라인 ──────────────────
+from review_collector import run_2016review_pipeline, run_2006review_pipeline
