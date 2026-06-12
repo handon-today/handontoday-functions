@@ -2,8 +2,19 @@
 ================================================================
   한돈투데이 N년 전 오늘 회고 파이프라인
   review_collector.py
-  v1.0.0
+  v1.0.1
 ================================================================
+[변경사항 v1.0.1]
+  - Slack 알림 URL에 article id 포함 (Django URL 패턴 일치)
+  - 인사이트 라벨 "N년 전과 오늘" 올바르게 표시 (target_year → years_ago)
+  - _build_title 불필요 변수 제거
+  - 윤년 2월 29일 방어 코드 추가
+  - HTML 엔티티 처리 html.unescape()로 통합
+  - Gemini 응답 korea_events/us_events 타입 검증
+  - db_manager.close_engine() 호출 추가
+  - notifier 함수명 send_simple_message로 수정
+  - DB 컬럼명 publish_status로 수정
+
 [역할]
   기준일로부터 정확히 N년 전 주간 양돈타임스 기사를 크롤링하여
   "N년 전 오늘" 회고 기사를 자동 생성합니다.
@@ -36,6 +47,7 @@
 import os
 import re
 import json
+import html as html_mod
 import requests
 import functions_framework
 from datetime import datetime, timezone, timedelta
@@ -102,32 +114,31 @@ def _fetch_article(idxno: int) -> dict | None:
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         resp = requests.get(url, headers=headers, timeout=15)
-        html = resp.text
+        resp_text = resp.text
 
         # 제목
-        title_m = re.search(r'<title>(.*?)</title>', html)
+        title_m = re.search(r'<title>(.*?)</title>', resp_text)
         raw_title = title_m.group(1) if title_m else ""
         # "- 양돈타임스" 제거
         title = re.sub(r'\s*-\s*양돈타임스\s*$', '', raw_title).strip()
-        # HTML 엔티티 간단 처리
-        title = title.replace("&lsquo;", "'").replace("&rsquo;", "'") \
-                     .replace("&middot;", "·").replace("&hellip;", "…") \
-                     .replace("&darr;", "↓").replace("&uarr;", "↑")
+        # HTML 엔티티 일괄 처리
+        title = html_mod.unescape(title)
 
         # 발행일 (article:published_time)
         date_m = re.search(
             r'<meta[^>]+article:published_time[^>]+content="([\d]{4}-[\d]{2}-[\d]{2})',
-            html
+            resp_text
         )
         pub_date = date_m.group(1) if date_m else ""
 
         # 본문
         body_m = re.search(
             r'id="article-view-content-div"[^>]*>(.*?)</div>',
-            html, re.DOTALL
+            resp_text, re.DOTALL
         )
         body_raw = body_m.group(1) if body_m else ""
         body = re.sub(r'<[^>]+>', '', body_raw)
+        body = html_mod.unescape(body)
         body = re.sub(r'\s+', ' ', body).strip()[:600]
 
         return {
@@ -145,7 +156,7 @@ def _fetch_article(idxno: int) -> dict | None:
 def _is_pig_article(title: str) -> bool:
     """비양돈 콘텐츠 필터"""
     for prefix in NON_PIG_PREFIXES:
-        # "[현장25시/이름]" 형태도 잡기 위해 in 검사 병행
+        # "[현장25시/이름]" 형태도 잡기 위해 startswith(prefix.rstrip("]")) 병행
         if title.startswith(prefix) or title.startswith(prefix.rstrip("]")):
             return False
     for kw in NON_PIG_KEYWORDS:
@@ -159,8 +170,13 @@ def crawl_review_articles(target_year: int, base_date: datetime) -> list[dict]:
     기준일(base_date) 기준 target_year의 ±4일 범위 양돈 기사 수집.
     article:published_time 기준으로 목표 연도 기사만 필터링.
     """
-    # target_year의 같은 월/일 ±4일
-    target_base = base_date.replace(year=target_year)
+    # target_year의 같은 월/일 ±4일 (윤년 방어)
+    try:
+        target_base = base_date.replace(year=target_year)
+    except ValueError:
+        # 2월 29일인데 target_year가 평년인 경우
+        target_base = base_date.replace(year=target_year, month=2, day=28)
+
     sdate = (target_base - timedelta(days=DAYS_RANGE)).strftime("%Y-%m-%d")
     edate = (target_base + timedelta(days=DAYS_RANGE)).strftime("%Y-%m-%d")
 
@@ -269,7 +285,15 @@ def generate_review_article(
         # JSON 블록 제거
         raw = re.sub(r'^```json\s*', '', raw.strip())
         raw = re.sub(r'\s*```$', '', raw.strip())
-        return json.loads(raw)
+        gen = json.loads(raw)
+
+        # 응답 타입 검증 — 리스트가 아니면 빈 리스트로 보정
+        if not isinstance(gen.get("korea_events"), list):
+            gen["korea_events"] = []
+        if not isinstance(gen.get("us_events"), list):
+            gen["us_events"] = []
+
+        return gen
     except Exception as e:
         print(f"  [Gemini 에러] {e}")
         return None
@@ -281,14 +305,13 @@ def generate_review_article(
 
 def _build_title(target_year: int, base_date: datetime, deck: str) -> str:
     years_ago = base_date.year - target_year
-    month = base_date.month
-    week_num = (base_date.day - 1) // 7 + 1
-    week_kor = ["", "첫째", "둘째", "셋째", "넷째", "다섯째"][min(week_num, 5)]
     return f"{years_ago}년 전 오늘 — {deck}"
 
 
 def _build_body_html(gen: dict, target_year: int, base_date: datetime) -> str:
     """HTML 본문 조립 (DB body 필드에 저장)"""
+    years_ago = base_date.year - target_year
+
     korea_items = "".join(
         f'<div class="week-item">{e}</div>' for e in gen.get("korea_events", [])
     )
@@ -308,7 +331,7 @@ def _build_body_html(gen: dict, target_year: int, base_date: datetime) -> str:
 <div class="blog-para"><div class="blog-num">2</div><div class="blog-text">{gen.get("para2", "")}</div></div>
 <div class="blog-para"><div class="blog-num">3</div><div class="blog-text">{gen.get("para3", "")}
 <div class="insight">
-<div class="insight-label">🔁 {target_year}년 전과 오늘 — 반복된 것, 달라진 것</div>
+<div class="insight-label">🔁 {years_ago}년 전과 오늘 — 반복된 것, 달라진 것</div>
 <div class="insight-row"><span class="tag tag-r">반복</span>{gen.get("insight_repeat", "")}</div>
 <div class="insight-row"><span class="tag tag-c">달라진 것</span>{gen.get("insight_change", "")}</div>
 </div>
@@ -345,10 +368,10 @@ def _insert_review_article(
             row = conn.execute(text("""
                 INSERT INTO generated_articles
                     (title, deck, body, category, slug, image_url,
-                     published_at, is_published, created_at)
+                     published_at, publish_status, created_at)
                 VALUES
                     (:title, :deck, :body, '회고', :slug, :image_url,
-                     :published_at, true, NOW())
+                     :published_at, 'published', NOW())
                 RETURNING id
             """), {
                 "title": title,
@@ -414,7 +437,7 @@ def _run_review_pipeline(years_ago: int) -> dict:
     if not articles:
         result["error"] = f"{target_year}년 양돈 기사 없음 (±{DAYS_RANGE}일 범위)"
         print(f"  ❌ {result['error']}")
-        notifier.send_slack(f"❌ {years_ago}년 전 오늘 실패: {result['error']}")
+        notifier.send_simple_message(f"❌ {years_ago}년 전 오늘 실패: {result['error']}")
         return result
 
     # ③ Gemini 기사 생성
@@ -422,7 +445,7 @@ def _run_review_pipeline(years_ago: int) -> dict:
     if not gen:
         result["error"] = "Gemini 기사 생성 실패"
         print(f"  ❌ {result['error']}")
-        notifier.send_slack(f"❌ {years_ago}년 전 오늘 실패: {result['error']}")
+        notifier.send_simple_message(f"❌ {years_ago}년 전 오늘 실패: {result['error']}")
         return result
 
     # ④ 제목/본문 조립
@@ -456,23 +479,30 @@ def _run_review_pipeline(years_ago: int) -> dict:
     if not art_id:
         result["error"] = "DB INSERT 실패"
         print(f"  ❌ {result['error']}")
-        notifier.send_slack(f"❌ {years_ago}년 전 오늘 DB 저장 실패")
+        notifier.send_simple_message(f"❌ {years_ago}년 전 오늘 DB 저장 실패")
         return result
 
     # ⑦ Slack 알림
     msg = (
         f"✅ *{years_ago}년 전 오늘* 발행 완료\n"
         f"📰 {title}\n"
-        f"🔗 https://handontoday.com/article/{slug}/\n"
+        f"🔗 https://handontoday.com/article/{art_id}-{slug}/\n"
         f"📦 기반 기사 {len(articles)}건 ({target_year}년)"
     )
-    notifier.send_slack(msg)
+    notifier.send_simple_message(msg)
 
     result["success"]  = True
     result["title"]    = title
     result["art_id"]   = art_id
     result["articles_count"] = len(articles)
     print(f"\n  🎉 완료 — id={art_id}, 제목: {title[:40]}")
+
+    # ⑧ DB 커넥션 정리
+    try:
+        db_manager.close_engine()
+    except Exception:
+        pass
+
     return result
 
 
@@ -492,4 +522,3 @@ def run_2006review_pipeline(request):
     """20년 전 오늘 (토요일 09:00 KST)"""
     result = _run_review_pipeline(years_ago=20)
     return (json.dumps(result, ensure_ascii=False), 200, {"Content-Type": "application/json"})
-
